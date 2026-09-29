@@ -3,14 +3,20 @@
  * A repo is booted in OneShot's E2B sandbox first and torn down after the shots; a URL is shot as
  * it is. Either way the film is cut from stills.
  */
-import { writeFileSync } from "node:fs";
+import { mkdirSync, writeFileSync } from "node:fs";
+import { basename } from "node:path";
 import { join } from "node:path";
 import { HEIGHT, WIDTH } from "@oneshot-agent/video-baseline";
 import type { Explored } from "@oneshot-video/shared-types";
-import { bootRepo, type BootResult } from "./boot.ts";
+import { bootRepo, type BootResult, type Box } from "./boot.ts";
 import { runHarness, type HarnessResult } from "./harness.ts";
 import { shootPages } from "./pages.ts";
-import { runWorkflow, type WorkflowAuth, type WorkflowStep } from "./workflow.ts";
+import {
+  runWorkflow,
+  type RunWorkflowResult,
+  type WorkflowAuth,
+  type WorkflowStep,
+} from "./workflow.ts";
 
 export { bootRepo, readRepoFacts, E2B_TEMPLATE, BOOT_CAP_S } from "./boot.ts";
 export { recipeFor, parseSetupHint } from "./recipe.ts";
@@ -53,6 +59,7 @@ export async function explore(opts: ExploreOptions): Promise<Explored> {
   let harness: Explored["harness"];
   let steps: WorkflowStep[] | undefined;
   let auth: WorkflowAuth | undefined;
+  let inBox: { box: Box; plan: unknown } | undefined;
   if (opts.repo_url) {
     const bootOpts = {
       repo_url: opts.repo_url,
@@ -97,6 +104,7 @@ export async function explore(opts: ExploreOptions): Promise<Explored> {
           expect: h.plan.auth.expect,
         };
       stop = h.stop;
+      inBox = { box: h.box, plan: h.plan };
     } else {
       log(`harness: ${h.reason} → recipe boot${h.box ? " in the same sandbox" : ""}`);
       const r: BootResult = await bootRepo(bootOpts, h.box);
@@ -118,8 +126,15 @@ export async function explore(opts: ExploreOptions): Promise<Explored> {
     const outDir = join(opts.runDir, "pages");
     // A harness plan is shot as a workflow (visit, click, fill, wait, scroll, still); anything
     // else walks the landing's links.
+    // The camera runs inside the box first: it reaches the app on localhost, as the agent's own
+    // check did, so a frontend that calls localhost, a Host check or a dev server too slow for the
+    // tunnel films the same as it checked. The camera outside is the fallback.
+    const boxed = inBox ? await shootInBox(inBox.box, inBox.plan, outDir, log) : undefined;
+    if (boxed) log(`shot ${boxed.pages.length} stills inside the box`);
     const shots = steps
-      ? await runWorkflow({ base_url, steps, auth, outDir, log }).then((w) => {
+      ? await (
+          boxed ? Promise.resolve(boxed) : runWorkflow({ base_url, steps, auth, outDir, log })
+        ).then((w) => {
           writeFileSync(
             join(opts.runDir, "workflow-actions.json"),
             JSON.stringify(w.actions, null, 2),
@@ -158,5 +173,40 @@ export async function explore(opts: ExploreOptions): Promise<Explored> {
     return explored;
   } finally {
     await stop?.();
+  }
+}
+
+/**
+ * Run the plan through check-workflow in the box (the template's copy of runWorkflow, same
+ * Chromium, film size) and download the stills. Undefined when it could not shoot at least one.
+ */
+async function shootInBox(
+  box: Box,
+  plan: unknown,
+  outDir: string,
+  log: (line: string) => void,
+): Promise<RunWorkflowResult | undefined> {
+  const dir = "/home/user/output/camera";
+  try {
+    await box.sbx.files.write("/home/user/output/camera-plan.json", JSON.stringify(plan));
+    const r = await box.run(
+      `mkdir -p ${dir} && CHECK_OUT=${dir} check-workflow /home/user/output/camera-plan.json --json ${dir}/result.json | tail -12`,
+      300_000,
+      false,
+    );
+    log(`in-box camera: ${r.stdout.trim().split("\n").at(-1) ?? ""}`);
+    const result = JSON.parse(await box.sbx.files.read(`${dir}/result.json`)) as RunWorkflowResult;
+    if (!result.pages.length) return undefined;
+    mkdirSync(outDir, { recursive: true });
+    for (const p of result.pages) {
+      const bytes = await box.sbx.files.read(p.png, { format: "bytes" });
+      const local = join(outDir, basename(p.png));
+      writeFileSync(local, bytes);
+      p.png = local;
+    }
+    return result;
+  } catch (e) {
+    log(`in-box camera failed (${String(e).slice(0, 160)}); shooting from outside`);
+    return undefined;
   }
 }

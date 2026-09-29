@@ -8,15 +8,20 @@
  *   check-workflow [plan.json] [--base http://localhost:3000]
  * Exit 0 when every step loaded, every action ran and no step looks like a login wall.
  */
-import { readFileSync } from "node:fs";
+import { readFileSync, writeFileSync } from "node:fs";
 import { validateDemoPlan } from "../src/demo-plan.ts";
 import { runWorkflow, type WorkflowAuth, type WorkflowStep } from "../src/workflow.ts";
 
 const args = process.argv.slice(2);
 const baseIdx = args.indexOf("--base");
+const jsonIdx = args.indexOf("--json");
+const flagValue = (i: number) => (i >= 0 ? i + 1 : -1);
 const planPath =
-  args.find((a, i) => !a.startsWith("--") && (baseIdx < 0 || i !== baseIdx + 1)) ??
-  "/home/user/output/demo-plan.json";
+  args.find(
+    (a, i) => !a.startsWith("--") && i !== flagValue(baseIdx) && i !== flagValue(jsonIdx),
+  ) ?? "/home/user/output/demo-plan.json";
+/** --json <path>: also write the full result, for the camera outside to collect the stills. */
+const jsonOut = jsonIdx >= 0 ? args[jsonIdx + 1] : undefined;
 
 let json: unknown;
 try {
@@ -52,6 +57,8 @@ const r = await runWorkflow({
   auth,
   outDir: process.env["CHECK_OUT"] ?? "/home/user/output/check",
 });
+
+if (jsonOut) writeFileSync(jsonOut, JSON.stringify(r, null, 2));
 
 const LOGIN_WALL =
   /\b(log ?in|sign ?in)\b[\s\S]{0,200}\bpassword\b|\bpassword\b[\s\S]{0,200}\b(log ?in|sign ?in)\b/i;
