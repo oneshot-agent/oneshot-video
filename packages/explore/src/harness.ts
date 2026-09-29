@@ -103,11 +103,13 @@ touch ${DONE}
   );
   await run("chmod +x /home/user/run-wrapper.sh", 10_000);
   const model = process.env["HARNESS_MODEL"] ?? process.env["OPENROUTER_MODEL"];
-  await sbx.commands.run("/home/user/run-wrapper.sh", {
-    background: true,
-    timeoutMs: 0,
-    envs: { ...opts.env, OPENROUTER_API_KEY: key, ...(model ? { AGENT_MODEL: model } : {}) },
-  });
+  const launch = () =>
+    sbx.commands.run("/home/user/run-wrapper.sh", {
+      background: true,
+      timeoutMs: 0,
+      envs: { ...opts.env, OPENROUTER_API_KEY: key, ...(model ? { AGENT_MODEL: model } : {}) },
+    });
+  await launch();
   log(`harness started · ${model ?? "template default model"} · cap ${HARNESS_CAP_S}s`);
   note({ event: "start", model: model ?? null, objective: task.objective });
 
@@ -128,6 +130,7 @@ touch ${DONE}
   };
   let polls = 0;
   let misses = 0;
+  let resumed = false;
   while (Date.now() < deadline) {
     await new Promise((r) => setTimeout(r, 5000));
     if (++polls % 6 === 0) await copyOut();
@@ -162,6 +165,25 @@ touch ${DONE}
       } else if (/^\[(EXIT|TOOL)\]|Agent failed/.test(line)) {
         log(`harness ${line.slice(0, 200)}`);
         note({ event: "agent", line: line.slice(0, 500) });
+      }
+    }
+    // An agent that crashed (a stalled model call, a 5xx) with turns and time left is resumed
+    // once: run-agent.ts checkpoints to output/agent-state.json and picks up where it stopped.
+    if (done && !resumed && deadline - Date.now() > 90_000) {
+      const check = await run(
+        `cat /home/user/.agent-exit-code; test -s ${OUT}/demo-plan.json && echo plan`,
+        10_000,
+        false,
+      );
+      const [code, plan] = check.stdout.trim().split("\n");
+      if (code !== "0" && plan !== "plan") {
+        resumed = true;
+        done = false;
+        log(`harness: the agent crashed on turn ${turns ?? "?"} (exit ${code}); resuming it once`);
+        note({ event: "resume", turns, exit: code });
+        await run(`rm -f ${DONE}`, 10_000, false);
+        await launch();
+        continue;
       }
     }
     if (done) break;
