@@ -128,8 +128,11 @@ export async function runWorkflow(opts: RunWorkflowOptions): Promise<RunWorkflow
       const step = opts.steps[i];
       if (!step) continue;
       const url = joinUrl(opts.base_url, step.path);
+      // A step on the same path as the last one continues in place: a single-page app's tabs,
+      // scrolls and clicks, without a reload that re-runs its queries into a spinner.
+      const stay = i > 0 && opts.steps[i - 1]?.path === step.path && pages.length > 0;
       try {
-        await page.goto(url);
+        if (!stay) await page.goto(url);
       } catch (e) {
         const error = errMessage(e);
         log(`goto failed ${step.id} ${url}: ${error}`);

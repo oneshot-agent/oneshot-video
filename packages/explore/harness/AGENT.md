@@ -92,6 +92,9 @@ source. Prefer, in this order: `role=button[name="Save"]` (the button's text),
 `#id`, `text=Exact text`. If an action stays doubtful, use a path that shows the same result: a
 still of the right page beats a click that misses.
 
+A step whose `path` is the same as the previous step's continues on that page without reloading
+it: that is how to film a single-page app's tabs, panels and dialogs (click a tab, wait, next step).
+
 **Behind a login?** Do not film the login. Create a demo user (the app's seed, its signup API, or a
 row you insert) and add an `auth` block to the plan: the camera runs it once, unfilmed, before the
 first step, and keeps the session (cookies, localStorage) for every step after it.
