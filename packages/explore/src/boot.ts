@@ -206,6 +206,7 @@ export async function bootE2B(opts: BootOptions, recipe: Recipe, given?: Box): P
     HOSTNAME: "0.0.0.0",
     BROWSER: "none",
     CI: "1",
+    ...recipe.env,
     ...(opts.env ?? {}),
   };
   // The template has `bun` on PATH but no `bunx` shim; `bun x` is the same command.
