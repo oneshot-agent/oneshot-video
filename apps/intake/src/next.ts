@@ -13,8 +13,12 @@ writeStatus({ id: sub.id, stage: "script", updated: new Date().toISOString() });
 try {
   const result = await run({ app_url: sub.url, id: sub.id, hint: sub.hint });
   writeStatus({
-    id: sub.id, stage: "done", updated: new Date().toISOString(),
-    video: `/videos/${sub.id}/voiced.mp4`, silent: `/videos/${sub.id}/silent.mp4`, cost_usd: result.cost,
+    id: sub.id,
+    stage: "done",
+    updated: new Date().toISOString(),
+    video: `/videos/${sub.id}/voiced.mp4`,
+    silent: `/videos/${sub.id}/silent.mp4`,
+    cost_usd: result.cost,
   });
   console.log(`done ${sub.id} · $${result.cost.toFixed(4)}`);
 } catch (e) {

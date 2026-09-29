@@ -25,7 +25,10 @@ const OS = {
 } as const;
 
 const esc = (s: string) =>
-  s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c] as string);
+  s.replace(
+    /[&<>"']/g,
+    (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c] as string,
+  );
 
 const css = `
   :root { color-scheme: dark; }
@@ -216,7 +219,16 @@ ${warn}
   );
 }
 
-const STAGES: Status["stage"][] = ["queued", "script", "recording", "narrating", "planning", "gates", "rendering", "done"];
+const STAGES: Status["stage"][] = [
+  "queued",
+  "script",
+  "recording",
+  "narrating",
+  "planning",
+  "gates",
+  "rendering",
+  "done",
+];
 const STAGE_NOTES: Record<Status["stage"], string> = {
   queued: "waiting its turn",
   script: "reading the page, writing the words",
@@ -231,11 +243,22 @@ const STAGE_NOTES: Record<Status["stage"], string> = {
 
 export function statusPage(sub: Submission | undefined, st: Status): string {
   const failed = st.stage === "failed";
-  const currentIdx = failed ? Math.max(0, STAGES.indexOf(failedStage(st))) : STAGES.indexOf(st.stage);
+  const currentIdx = failed
+    ? Math.max(0, STAGES.indexOf(failedStage(st)))
+    : STAGES.indexOf(st.stage);
   const rows = STAGES.map((s, i) => {
-    const cls = ["stage-row", i < currentIdx ? "is-passed" : "", i === currentIdx ? "is-current" : "", i === currentIdx && failed ? "stage-failed" : ""].filter(Boolean).join(" ");
-    const note = i === currentIdx ? (failed ? "stopped here" : STAGE_NOTES[s]) : i < currentIdx ? "done" : "";
-    const err = i === currentIdx && failed ? `<pre class="error">${esc(st.error ?? "failed")}</pre>` : "";
+    const cls = [
+      "stage-row",
+      i < currentIdx ? "is-passed" : "",
+      i === currentIdx ? "is-current" : "",
+      i === currentIdx && failed ? "stage-failed" : "",
+    ]
+      .filter(Boolean)
+      .join(" ");
+    const note =
+      i === currentIdx ? (failed ? "stopped here" : STAGE_NOTES[s]) : i < currentIdx ? "done" : "";
+    const err =
+      i === currentIdx && failed ? `<pre class="error">${esc(st.error ?? "failed")}</pre>` : "";
     return `<section class="${cls}"><p class="section-marker">${s}</p><span class="note">${esc(note)}</span>${err}</section>`;
   }).join("");
   const done = st.stage === "done";

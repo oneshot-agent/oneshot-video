@@ -20,7 +20,7 @@ export interface Flow {
 
 /**
  * Land, let it settle, read down the page in three moves, open the first real link, settle
- * again. About 22 s of footage: three six-second beats plus slack for the cut.
+ * again. About 25 s of footage: three capture beats of six seconds or more, plus slack for the cut.
  */
 export function defaultFlow(url: string): Flow {
   return {
@@ -41,6 +41,8 @@ export function defaultFlow(url: string): Flow {
       { op: "wait", ms: 3200 },
       { op: "scroll", dy: 480 },
       { op: "wait", ms: 2600 },
+      { op: "scroll", dy: 520 },
+      { op: "wait", ms: 2400 },
     ],
   };
 }

@@ -10,7 +10,16 @@ export interface Submission {
   ts: string;
 }
 
-export type Stage = "queued" | "script" | "recording" | "narrating" | "planning" | "gates" | "rendering" | "done" | "failed";
+export type Stage =
+  | "queued"
+  | "script"
+  | "recording"
+  | "narrating"
+  | "planning"
+  | "gates"
+  | "rendering"
+  | "done"
+  | "failed";
 
 export interface Status {
   id: string;
@@ -40,7 +49,10 @@ export function enqueue(s: Omit<Submission, "id" | "ts">): Submission {
 
 export function listSubmissions(): Submission[] {
   if (!existsSync(QUEUE_PATH)) return [];
-  return readFileSync(QUEUE_PATH, "utf8").split("\n").filter(Boolean).map((l) => JSON.parse(l) as Submission);
+  return readFileSync(QUEUE_PATH, "utf8")
+    .split("\n")
+    .filter(Boolean)
+    .map((l) => JSON.parse(l) as Submission);
 }
 
 export function readStatus(id: string): Status {
@@ -63,7 +75,9 @@ export function nextQueued(): Submission | null {
 const LOCAL_HOSTS = /^(localhost|127\.0\.0\.1|0\.0\.0\.0|\[::1\]|.*\.local)$/i;
 
 /** http(s), reachable from somewhere that is not the submitter's laptop. */
-export function validateUrl(raw: string): { ok: true; url: string } | { ok: false; reason: "invalid" | "local" } {
+export function validateUrl(
+  raw: string,
+): { ok: true; url: string } | { ok: false; reason: "invalid" | "local" } {
   let u: URL;
   try {
     u = new URL(raw.trim());

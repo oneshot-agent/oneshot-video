@@ -34,7 +34,11 @@ describe("intake", () => {
     expect(listSubmissions()).toHaveLength(0);
   });
   it("queues a public URL and redirects to its status page", async () => {
-    const r = await post({ url: "https://oneshot-gtm.com", contact: "@j", hint: "the receipts page" });
+    const r = await post({
+      url: "https://oneshot-gtm.com",
+      contact: "@j",
+      hint: "the receipts page",
+    });
     expect(r.status).toBe(303);
     const loc = r.headers.get("location") ?? "";
     expect(loc).toMatch(/\/r\/[a-z0-9-]+$/);
@@ -57,7 +61,12 @@ describe("intake", () => {
     expect(html).toMatch(/stage-row is-current/);
     const { writeStatus } = await import("../src/queue.ts");
     const id = loc.split("/").pop() as string;
-    writeStatus({ id, stage: "failed", updated: "", error: "taste gates failed:\nrealPixels: 57% real pixels" });
+    writeStatus({
+      id,
+      stage: "failed",
+      updated: "",
+      error: "taste gates failed:\nrealPixels: 57% real pixels",
+    });
     const failed = await (await handle(new Request(loc))).text();
     expect(failed).toMatch(/stage-failed/);
     expect(failed).toMatch(/It did not ship/);
