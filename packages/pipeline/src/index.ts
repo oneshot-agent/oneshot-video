@@ -411,7 +411,15 @@ export async function finish(
   const silent = join(ROOT, "renders", `${a.id}-silent.mp4`);
   const voiced = join(ROOT, "renders", `${a.id}-voiced.mp4`);
   render("DemoVideoSilent", propsPath, silent, log);
-  if (!opts.silentOnly) render("DemoVideo", propsPath, voiced, log);
+  if (!opts.silentOnly) {
+    render("DemoVideo", propsPath, voiced, log);
+    // The two cuts mix differently (voice + ducked bed vs bed alone); identical files mean the
+    // voice never reached the render. That shipped unnoticed once; it fails the run now.
+    if (readFileSync(voiced).equals(readFileSync(silent)))
+      throw new Error(
+        "render: the voiced cut is identical to the silent one (no voice in the mix)",
+      );
+  }
 
   const cost = a.cost_usd ?? 0;
   const result: RenderResult = {

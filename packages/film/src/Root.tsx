@@ -15,7 +15,9 @@ export const RemotionRoot: React.FC = () => (
       height={HEIGHT}
       fps={FPS}
       durationInFrames={durationFrames(fixtureProps)}
-      defaultProps={fixtureProps}
+      // The fixture is the silent cut's; a run's props do not set `silent`, so this default is
+      // what decides whether the voiced cut carries the voice.
+      defaultProps={{ ...fixtureProps, silent: false }}
       calculateMetadata={({ props }) => ({ durationInFrames: durationFrames(props) })}
     />
     <Composition
