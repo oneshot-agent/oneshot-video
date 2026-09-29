@@ -67,6 +67,9 @@ export interface NarrateOptions {
   ext?: "mp3" | "wav";
 }
 
+/** How long a section with no voice line holds, in seconds. */
+export const SILENT_STEM_S = 2;
+
 export async function narrate(script: Script, opts: NarrateOptions): Promise<Stem[]> {
   const req = opts.request ?? TTS_REQUEST;
   const g = flatEnergy(req);
@@ -74,9 +77,26 @@ export async function narrate(script: Script, opts: NarrateOptions): Promise<Ste
   mkdirSync(opts.outDir, { recursive: true });
   const stems: Stem[] = [];
   for (const s of script.sections) {
-    const audio = await opts.tts(s.text, req);
     const path = join(opts.outDir, `${s.id}.${opts.ext ?? "mp3"}`);
-    writeFileSync(path, audio);
+    if (!s.text.trim()) {
+      // A card with no voice line (a silent close) gets a short silent stem, not a TTS call:
+      // the timeline still needs a window for it, and the TTS API rejects empty text.
+      const r = spawnSync("ffmpeg", [
+        "-v",
+        "error",
+        "-y",
+        "-f",
+        "lavfi",
+        "-i",
+        "anullsrc=r=44100:cl=mono",
+        "-t",
+        String(SILENT_STEM_S),
+        path,
+      ]);
+      if (r.status !== 0) throw new Error(`narrate: could not write a silent stem for ${s.id}`);
+    } else {
+      writeFileSync(path, await opts.tts(s.text, req));
+    }
     stems.push({ id: s.id, path, duration_s: probeDuration(path) });
   }
   writeFileSync(join(opts.outDir, "stems.json"), JSON.stringify(stems, null, 2));
