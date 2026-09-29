@@ -39,6 +39,38 @@ describe("loadFlow", () => {
     expect(() => loadFlow(path)).toThrow(/"url"/);
   });
 
+  it("throws naming the step index and field for a malformed goto url", () => {
+    const dir = tmpdir();
+    const path = join(dir, `flow-bad-url-${Date.now()}.json`);
+    writeFileSync(path, JSON.stringify({ steps: [{ op: "goto", url: "not a url" }] }));
+    expect(() => loadFlow(path)).toThrow(/step 0/);
+    expect(() => loadFlow(path)).toThrow(/"url"/);
+  });
+
+  it("throws naming the step index and field for a non-http(s) goto url", () => {
+    const dir = tmpdir();
+    const path = join(dir, `flow-bad-scheme-${Date.now()}.json`);
+    writeFileSync(path, JSON.stringify({ steps: [{ op: "goto", url: "file:///etc/passwd" }] }));
+    expect(() => loadFlow(path)).toThrow(/step 0/);
+    expect(() => loadFlow(path)).toThrow(/"url"/);
+  });
+
+  it("loads a fill step whose value is an empty string, clearing a field", () => {
+    const dir = tmpdir();
+    const path = join(dir, `flow-empty-fill-${Date.now()}.json`);
+    writeFileSync(
+      path,
+      JSON.stringify({
+        steps: [
+          { op: "goto", url: "https://x.test" },
+          { op: "fill", selector: "#name", value: "" },
+        ],
+      }),
+    );
+    const flow = loadFlow(path);
+    expect(flow.steps[1]).toEqual({ op: "fill", selector: "#name", value: "" });
+  });
+
   it("throws naming the step index and field for a non-positive wait ms", () => {
     const dir = tmpdir();
     const path = join(dir, `flow-bad-wait-${Date.now()}.json`);

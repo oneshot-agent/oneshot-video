@@ -20,12 +20,33 @@ function requireString(
   op: string,
   step: Record<string, unknown>,
   field: string,
+  options?: { allowEmpty?: boolean },
 ): string {
   const value = step[field];
-  if (typeof value !== "string" || value.length === 0) {
-    fail(index, op, field, "must be a non-empty string");
+  if (typeof value !== "string" || (value.length === 0 && !options?.allowEmpty)) {
+    fail(index, op, field, options?.allowEmpty ? "must be a string" : "must be a non-empty string");
   }
   return value as string;
+}
+
+/** A goto step's url must be an absolute http(s) URL: what page.goto can actually navigate to. */
+function requireUrl(
+  index: number,
+  op: string,
+  step: Record<string, unknown>,
+  field: string,
+): string {
+  const value = requireString(index, op, step, field);
+  let parsed: URL;
+  try {
+    parsed = new URL(value);
+  } catch {
+    fail(index, op, field, "must be a valid absolute URL");
+  }
+  if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+    fail(index, op, field, "must use the http or https scheme");
+  }
+  return value;
 }
 
 function requirePositiveNumber(
@@ -65,7 +86,7 @@ function validateStep(raw: unknown, index: number): FlowStep {
   }
   switch (op as FlowStep["op"]) {
     case "goto":
-      return { op: "goto", url: requireString(index, op, step, "url") };
+      return { op: "goto", url: requireUrl(index, op, step, "url") };
     case "wait":
       return { op: "wait", ms: requirePositiveNumber(index, op, step, "ms") };
     case "click":
@@ -74,7 +95,7 @@ function validateStep(raw: unknown, index: number): FlowStep {
       return {
         op: "fill",
         selector: requireString(index, op, step, "selector"),
-        value: requireString(index, op, step, "value"),
+        value: requireString(index, op, step, "value", { allowEmpty: true }),
       };
     case "scroll":
       return { op: "scroll", dy: requireNumber(index, op, step, "dy") };
