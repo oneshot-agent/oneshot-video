@@ -56,7 +56,35 @@ export function userPrompt(app_url: string, markdown: string, length_s: number):
     "",
     "Exemplar (the launch film's script):",
     exemplar,
+    "",
+    `Hard limits, again: ${wordBudget(length_s)} words in total; wedge and close at most ${CARD_WORDS_MAX} words each, counted by spaces.`,
   ].join("\n");
+}
+
+/**
+ * One card, one line, one small call. After a whole-script retry the model still tends to copy the
+ * exemplar's card lengths; asking for a single line under a hard cap is far more reliable.
+ */
+export async function fixCardLine(
+  llm: Llm,
+  section: Script["sections"][number],
+  cap = CARD_WORDS_MAX,
+): Promise<string> {
+  const system = `You shorten one line of narration for a product film. Terse, dry, declarative. Keep the meaning. Return the line only, no quotes, no commentary.`;
+  for (let i = 0; i < 2; i++) {
+    const raw = await llm(
+      system,
+      `Rewrite this in at most ${cap} words (count by spaces):\n${section.text}`,
+    );
+    const line =
+      raw
+        .trim()
+        .split("\n")[0]
+        ?.replace(/^["'“”]+|["'“”]+$/g, "")
+        .trim() ?? "";
+    if (line && countWords(line) <= cap) return line;
+  }
+  return section.text;
 }
 
 export function parseScript(raw: string): Script {
@@ -157,6 +185,14 @@ export async function buildScript(
     let script: Script | undefined;
     try {
       script = parseScript(raw);
+      // Cards over the cap get a single-line rewrite before the whole script is judged.
+      for (const s of script.sections) {
+        if ((s.kind ?? "capture") === "text_card" && countWords(s.text) > CARD_WORDS_MAX) {
+          s.text = await fixCardLine(opts.llm, s);
+          if (s.on_screen?.length && s.on_screen.join(" ").split(/\s+/).length > CARD_WORDS_MAX)
+            s.on_screen = [s.text];
+        }
+      }
       gateScript(script, length_s);
       return { script, cost_usd: page.cost_usd ?? 0, attempts: attempt };
     } catch (e) {

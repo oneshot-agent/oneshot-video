@@ -19,3 +19,7 @@ least 0.4 after a line that carries the argument. The total word count must stay
 Schema: the exemplar. Same keys, same `delivery_cues` shape, `kind` set per section, `on_screen`
 listing any literal text the canvas shows during that beat, `narration_only` + `silentFallback` when
 the voice carries something the picture does not.
+
+The exemplar is a fifty-seven-second film with eight sections; copy its keys and its voice, not its
+lengths. Count words by spaces. A text card (`wedge`, `close`) is at most eight words. The whole
+script stays under the word budget given below. These are hard limits, checked by a machine.
