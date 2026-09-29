@@ -11,7 +11,7 @@ import { APP_DIR, openSandbox, portAnswers, startProxy, type Box } from "./boot.
 import { validateDemoPlan, type DemoPlan } from "./demo-plan.ts";
 import { buildTask } from "./task.ts";
 
-export const HARNESS_CAP_S = Number(process.env["HARNESS_CAP_S"] ?? 480);
+export const HARNESS_CAP_S = Number(process.env["HARNESS_CAP_S"] ?? 720);
 const AGENT_MD_PATH = join(import.meta.dirname, "..", "harness", "AGENT.md");
 const DONE = "/home/user/.agent-done";
 const OUT = "/home/user/output";

@@ -149,3 +149,6 @@ events.jsonl
 /runs/
 /intake/
 packages/film/public/runs/
+
+# E2B template build context (holds a copy of OneShot's internal run-agent.ts)
+packages/explore/template/.build/

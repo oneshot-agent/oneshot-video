@@ -5,7 +5,21 @@
 import { spawnSync } from "node:child_process";
 import { recipeFor, type Recipe, type RepoFacts } from "./recipe.ts";
 
-export const E2B_TEMPLATE = "3q9bmjreg9m3aggg9x3q"; // one-shot/apps/worker-service/agent_tier/e2b.toml
+/**
+ * The box a repo is prepared in: packages/explore/template (4 vCPU, 8 GB, Node/pnpm/yarn/Bun/uv,
+ * Postgres and Redis running). ONESHOT_VIDEO_E2B_TEMPLATE overrides it, e.g. with OneShot's own
+ * agent template `3q9bmjreg9m3aggg9x3q` (2 vCPU, 1 GB, Bun only).
+ */
+export const E2B_TEMPLATE = process.env["ONESHOT_VIDEO_E2B_TEMPLATE"] ?? "oneshot-video";
+
+/**
+ * Default env for every command in the box. The template's Dockerfile ENV does not reach sandbox
+ * commands, so the local services' URLs are set here; the agent and everything it starts inherit them.
+ */
+export const BOX_ENV: Record<string, string> = {
+  DATABASE_URL_LOCAL: "postgresql://demo:demo@localhost:5432/demo",
+  REDIS_URL_LOCAL: "redis://localhost:6379",
+};
 
 /** Runs inside the sandbox: forwards to the app on localhost with a loopback Host header. */
 const PROXY_SOURCE = `const target = "http://127.0.0.1:__PORT__";
@@ -108,7 +122,7 @@ export async function openSandbox(
 ): Promise<Box> {
   const { Sandbox } = await import("e2b");
   const t0 = Date.now();
-  const sbx = await Sandbox.create(E2B_TEMPLATE, { timeoutMs: 30 * 60_000 });
+  const sbx = await Sandbox.create(E2B_TEMPLATE, { timeoutMs: 30 * 60_000, envs: BOX_ENV });
   log(`e2b sandbox ${sbx.sandboxId}`);
   const run = async (cmd: string, timeoutMs = 240_000, mustSucceed = true): Promise<RunResult> => {
     const r = await sbx.commands

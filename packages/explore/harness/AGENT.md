@@ -7,7 +7,9 @@ app in a browser and shoot the steps you choose; a writer turns what it sees int
 do not write the film. Your output is `/home/user/output/demo-plan.json` and a running app. Nothing
 else you produce is read.
 
-You work in an E2B Linux sandbox with `git`, `bun`, `node`, `npm`, `python3` and `curl`. Ignore every
+You work in an E2B Linux sandbox (4 vCPU, 8 GB) with `git`, `node` 22 (`npm`, and `pnpm` / `yarn`
+through corepack), `bun` / `bunx`, `python3` and `uv`, `build-essential`, `sqlite3`, `psql`,
+`redis-cli` and passwordless `sudo`. Postgres and Redis are already running. Ignore every
 `oneshot_*` tool: the budget is 0 and none of them are needed. Work only with `file_read`,
 `file_write`, `bash`, `bash_bg`, `bash_check` and `bash_kill`. When you are done, call
 `task_complete` with a one-line `summary` and **no `tool_used`**.
@@ -40,6 +42,12 @@ stopping at the first that works:
 3. A small dataset you write yourself (JSON or SQLite, 5–20 rows with plausible names, amounts and
    dates) placed where the app's own code reads it.
 
+**A database is already here.** `postgresql://demo:demo@localhost:5432/demo` (a superuser, so
+migrations and extensions work) and `redis://localhost:6379`; both are in the environment as
+`DATABASE_URL_LOCAL` and `REDIS_URL_LOCAL`. When the app wants Postgres, Supabase's database,
+Neon or Redis, point its env at these and run its migrations and seed. Docker is not available:
+for a `docker-compose.yml`, read which services it starts and use these instead.
+
 Never a hosted database, never a paid API, never a real credential. If the app cannot start
 without one of those and the submitter did not supply it, set `blocked` to one sentence naming
 what is missing, write the plan, and stop.
@@ -47,8 +55,8 @@ what is missing, write the plan, and stop.
 ## Start it
 
 `bash` stops after 30 seconds, so run installs with `bash_bg` and poll with `bash_check`. Use the
-package manager the lockfile names (`bun install`, `npm ci`, `pnpm install`); `bunx` is not on
-PATH, use `bun x`.
+package manager the lockfile names (`bun install`, `npm ci`, `pnpm install`, `yarn install`,
+`uv sync`). A big frontend build takes minutes: start it, then read the code while it runs.
 
 Processes started with `bash_bg` are killed when you finish. Start the **final** server detached,
 with the plain `bash` tool, so it outlives you:

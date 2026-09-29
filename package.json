@@ -29,7 +29,10 @@
     "render": "bun run --cwd packages/film render",
     "intake:serve": "bun run apps/intake/src/server.ts",
     "intake:next": "bun run apps/intake/src/next.ts",
-    "intake:loop": "bun run apps/intake/src/next.ts --loop"
+    "intake:loop": "bun run apps/intake/src/next.ts --loop",
+    "template:build": "packages/explore/template/build.sh",
+    "template:smoke": "bun --env-file=.env packages/explore/template/smoke.ts",
+    "template:matrix": "bun --env-file=.env packages/explore/template/matrix.ts"
   },
   "devDependencies": {
     "@types/bun": "catalog:",
