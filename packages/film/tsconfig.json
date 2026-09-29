@@ -1,0 +1,12 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "types": ["bun"],
+    "paths": {
+      "@oneshot-agent/video-baseline": ["../baseline/src/index.ts"],
+      "@oneshot-agent/video-baseline/*": ["../baseline/src/*.ts"],
+      "@oneshot-video/shared-types": ["../shared-types/src/index.ts"]
+    }
+  },
+  "include": ["src/**/*.ts", "src/**/*.tsx", "remotion.config.ts"]
+}

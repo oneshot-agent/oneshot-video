@@ -1,0 +1,37 @@
+{
+  "name": "@oneshot-agent/video-baseline",
+  "version": "0.1.0",
+  "description": "The taste of the OneShot launch film, as constants and gates. Imported by oneshot-video and by OneShot's demo-video tool, so both render the same film.",
+  "homepage": "https://github.com/oneshot-agent/oneshot-video",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/oneshot-agent/oneshot-video",
+    "directory": "packages/baseline"
+  },
+  "files": [
+    "src",
+    "assets",
+    "fixtures",
+    "README.md"
+  ],
+  "type": "module",
+  "main": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./tokens": "./src/tokens.ts",
+    "./motion": "./src/motion.ts",
+    "./voice": "./src/voice.ts",
+    "./music": "./src/music.ts",
+    "./vocabulary": "./src/vocabulary.ts",
+    "./structure": "./src/structure.ts",
+    "./gates": "./src/gates.ts",
+    "./score.mp3": "./assets/score.mp3"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "dependencies": {
+    "@oneshot-video/shared-types": "workspace:*"
+  }
+}

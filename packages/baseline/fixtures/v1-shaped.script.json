@@ -1,0 +1,101 @@
+{
+  "version": "1.0",
+  "title": "v1-shaped — the launch video before the corrections",
+  "total_duration_seconds": 25.0,
+  "voice_performance": {
+    "performance_intent": "Friendly explainer, upbeat.",
+    "pacing_profile": "energetic",
+    "energy_curve": "Builds to an exciting CTA.",
+    "pause_policy": "Keep it moving."
+  },
+  "sections": [
+    {
+      "id": "s1",
+      "label": "hook",
+      "kind": "text_card",
+      "text": "Meet the innovative GTM tool that will revolutionize your ecosystem!",
+      "start_seconds": 0.0,
+      "end_seconds": 5.0,
+      "delivery_cues": {
+        "pace": "fast",
+        "energy": "excited",
+        "emphasis_words": ["innovative"],
+        "pause_before_seconds": 0,
+        "pause_after_seconds": 0
+      }
+    },
+    {
+      "id": "s2",
+      "label": "install",
+      "kind": "terminal",
+      "text": "Just run bunx oneshot-gtm init and you are ready to go.",
+      "on_screen": ["bunx oneshot-gtm init"],
+      "start_seconds": 5.0,
+      "end_seconds": 10.0,
+      "delivery_cues": {
+        "pace": "fast",
+        "energy": "bright",
+        "emphasis_words": [],
+        "pause_before_seconds": 0,
+        "pause_after_seconds": 0
+      }
+    },
+    {
+      "id": "s3",
+      "label": "plays",
+      "kind": "text_card",
+      "narration_only": true,
+      "text": "It has fourteen plays, ten finders, signed receipts, and a dashboard, so you can leverage everything from one place.",
+      "start_seconds": 10.0,
+      "end_seconds": 15.0,
+      "delivery_cues": {
+        "pace": "fast",
+        "energy": "bright",
+        "emphasis_words": [],
+        "pause_before_seconds": 0,
+        "pause_after_seconds": 0.1
+      }
+    },
+    {
+      "id": "s4",
+      "label": "receipts",
+      "kind": "capture",
+      "text": "Every action is tracked so you can see your CAC.",
+      "start_seconds": 15.0,
+      "end_seconds": 20.0,
+      "delivery_cues": {
+        "pace": "fast",
+        "energy": "bright",
+        "emphasis_words": [],
+        "pause_before_seconds": 0,
+        "pause_after_seconds": 0
+      }
+    },
+    {
+      "id": "s5",
+      "label": "cta",
+      "kind": "text_card",
+      "text": "Get started today! Check it out at oneshot-gtm.com!",
+      "start_seconds": 20.0,
+      "end_seconds": 25.0,
+      "delivery_cues": {
+        "pace": "fast",
+        "energy": "lift",
+        "emphasis_words": ["today"],
+        "pause_before_seconds": 0,
+        "pause_after_seconds": 0
+      }
+    }
+  ],
+  "metadata": {
+    "bed": "phonk_source.mp3",
+    "tts": {
+      "voice_id": "roger",
+      "model_id": "eleven_multilingual_v2",
+      "stability": 0.3,
+      "style": 0.5,
+      "output_format": "mp3_44100_128"
+    },
+    "observed": ["bunx oneshot-gtm-server"]
+  }
+}

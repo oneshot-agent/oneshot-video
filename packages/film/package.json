@@ -1,0 +1,50 @@
+{
+  "name": "@oneshot-agent/video-film",
+  "version": "0.1.0",
+  "description": "The OneShot launch film as a Remotion composition. Reads every constant from @oneshot-agent/video-baseline.",
+  "homepage": "https://github.com/oneshot-agent/oneshot-video",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/oneshot-agent/oneshot-video",
+    "directory": "packages/film"
+  },
+  "files": [
+    "src",
+    "public",
+    "remotion.config.ts",
+    "README.md"
+  ],
+  "type": "module",
+  "main": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./root": "./src/Root.tsx"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "studio": "remotion studio src/index.ts",
+    "render": "remotion render src/index.ts DemoVideo ../../renders/demo.mp4",
+    "render:silent": "remotion render src/index.ts DemoVideoSilent ../../renders/demo-silent.mp4"
+  },
+  "dependencies": {
+    "@fontsource-variable/host-grotesk": "^5.2.8",
+    "@fontsource/ibm-plex-mono": "^5.2.8",
+    "@oneshot-agent/video-baseline": "workspace:*",
+    "@oneshot-video/shared-types": "workspace:*"
+  },
+  "devDependencies": {
+    "@remotion/cli": "^4.0.484",
+    "@types/react": "^18.2.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "remotion": "^4.0.484"
+  },
+  "peerDependencies": {
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "remotion": "^4.0.0"
+  }
+}

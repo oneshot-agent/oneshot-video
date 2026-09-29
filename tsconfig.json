@@ -1,0 +1,24 @@
+{
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "types": ["bun"],
+    "paths": {
+      "@oneshot-agent/video-baseline": ["./packages/baseline/src/index.ts"],
+      "@oneshot-agent/video-baseline/*": ["./packages/baseline/src/*.ts"],
+      "@oneshot-agent/video-film": ["./packages/film/src/index.ts"],
+      "@oneshot-video/shared-types": ["./packages/shared-types/src/index.ts"],
+      "@oneshot-video/script": ["./packages/script/src/index.ts"],
+      "@oneshot-video/record": ["./packages/record/src/index.ts"],
+      "@oneshot-video/narrate": ["./packages/narrate/src/index.ts"],
+      "@oneshot-video/pipeline": ["./packages/pipeline/src/index.ts"]
+    }
+  },
+  "include": [
+    "apps/*/src/**/*.ts",
+    "apps/*/__tests__/**/*.ts",
+    "packages/*/src/**/*.ts",
+    "packages/*/src/**/*.tsx",
+    "packages/*/__tests__/**/*.ts"
+  ],
+  "exclude": ["node_modules", "dist", "packages/film/remotion.config.ts"]
+}

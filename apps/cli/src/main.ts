@@ -1,0 +1,88 @@
+#!/usr/bin/env bun
+/**
+ * oneshot-video <app_url> [--length 30] [--flow flow.json] [--silent-only] [--dry-run]
+ * No dependency on a CLI framework: the surface is one positional and four flags.
+ */
+import {
+  BED_PATH,
+  MIX,
+  MODEL_ID,
+  STABILITY,
+  VOICE_NAME,
+  WORDS_PER_SECOND_MAX,
+} from "@oneshot-agent/video-baseline";
+import { describePlan, run } from "@oneshot-video/pipeline";
+
+export interface Args {
+  app_url?: string;
+  length_s: number;
+  flow?: string;
+  silentOnly: boolean;
+  dryRun: boolean;
+  help: boolean;
+}
+
+export function parseArgs(argv: string[]): Args {
+  const a: Args = { length_s: 30, silentOnly: false, dryRun: false, help: false };
+  for (let i = 0; i < argv.length; i++) {
+    const x = argv[i];
+    if (x === "--length") a.length_s = Number(argv[++i] ?? 30);
+    else if (x === "--flow") a.flow = argv[++i];
+    else if (x === "--silent-only") a.silentOnly = true;
+    else if (x === "--dry-run") a.dryRun = true;
+    else if (x === "-h" || x === "--help") a.help = true;
+    else if (x && !x.startsWith("-") && !a.app_url) a.app_url = x;
+    else throw new Error(`unknown argument: ${x}`);
+  }
+  return a;
+}
+
+export const USAGE = `oneshot-video <app_url> [--length 30] [--flow flow.json] [--silent-only] [--dry-run]
+
+  A URL in, a 30-second product video out, voiced and silent. The film is fixed.
+  --dry-run prints the plan and exits before any paid call.`;
+
+export function renderPlan(args: Args): string {
+  const plan = describePlan({ app_url: args.app_url ?? "", length_s: args.length_s });
+  const lines = [
+    `oneshot-video · ${plan.app_url} · ${plan.length_s}s${args.silentOnly ? " · silent only" : ""}`,
+    "",
+    ...plan.stages.map((s, i) => `  ${i + 1}. ${s.stage.padEnd(8)} ${s.note}`),
+    "",
+    `  voice   ${VOICE_NAME} · ${MODEL_ID} · stability ${STABILITY} · ≤ ${WORDS_PER_SECOND_MAX} words/s`,
+    `  bed     ${BED_PATH} · ${MIX.voiced} under narration · ${MIX.silent} alone`,
+    "",
+    "  dry run: nothing was recorded, spoken, paid or rendered.",
+  ];
+  return lines.join("\n");
+}
+
+export async function main(argv: string[]): Promise<number> {
+  let args: Args;
+  try {
+    args = parseArgs(argv);
+  } catch (e) {
+    console.error(String(e instanceof Error ? e.message : e));
+    console.error(USAGE);
+    return 2;
+  }
+  if (args.help || !args.app_url) {
+    console.log(USAGE);
+    return args.help ? 0 : 2;
+  }
+  if (args.dryRun) {
+    console.log(renderPlan(args));
+    return 0;
+  }
+  try {
+    await run({ app_url: args.app_url, length_s: args.length_s, silentOnly: args.silentOnly });
+    return 0;
+  } catch (e) {
+    console.error(e instanceof Error ? e.message : String(e));
+    return 1;
+  }
+}
+
+if (import.meta.main) {
+  process.exit(await main(process.argv.slice(2)));
+}

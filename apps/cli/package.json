@@ -1,0 +1,28 @@
+{
+  "name": "oneshot-video",
+  "version": "0.1.0",
+  "description": "The launch-film wrapper over OneShot. A URL in, a 30-second product video out.",
+  "homepage": "https://github.com/oneshot-agent/oneshot-video",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/oneshot-agent/oneshot-video",
+    "directory": "apps/cli"
+  },
+  "bin": {
+    "oneshot-video": "./src/main.ts"
+  },
+  "files": [
+    "src"
+  ],
+  "type": "module",
+  "main": "./src/main.ts",
+  "publishConfig": {
+    "access": "public"
+  },
+  "dependencies": {
+    "@oneshot-agent/video-baseline": "workspace:*",
+    "@oneshot-video/pipeline": "workspace:*",
+    "@oneshot-video/shared-types": "workspace:*"
+  }
+}

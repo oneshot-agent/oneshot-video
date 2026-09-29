@@ -1,0 +1,428 @@
+{
+  "version": "1.0",
+  "title": "oneshot-gtm \u2014 Open Source Launch",
+  "total_duration_seconds": 57.19,
+  "voice_performance": {
+    "performance_intent": "A developer stating facts to other developers. Dry, unhurried, faintly amused. Never sells, never explains twice. The read should sound written rather than generated, and it should sound like it would still be true if nobody watched.",
+    "pacing_profile": "technical",
+    "energy_curve": "Flat and low throughout. No lift at the CTA. The only variation is the pause length before the two lines that carry the argument: 'Most founders don't.' and 'Measured, not estimated.'",
+    "pause_policy": "Full stops get real silence, 0.4s minimum. Never speak over a beat where the viewer is reading UI text or terminal output. Silence is allowed and preferred over filler.",
+    "sample_section_id": "s1-wedge",
+    "provider_notes": {
+      "elevenlabs": "Stability high, style exaggeration near zero. Any warmth or upward inflection at line ends is wrong for this brand. Reject takes that sound like an explainer voice."
+    }
+  },
+  "sections": [
+    {
+      "id": "s1-wedge",
+      "label": "The inversion",
+      "text": "Every go-to-market tool assumes you already have product-market fit. Most founders don't.",
+      "start_seconds": 0.35,
+      "end_seconds": 7.4,
+      "speaker_directions": "Open cold, no music swell. Land 'Most founders don't' after a full beat of silence. It is the whole argument.",
+      "delivery_cues": {
+        "pace": "measured",
+        "energy": "flat, declarative",
+        "emphasis_words": ["assumes", "don't"],
+        "pause_before_seconds": 0.4,
+        "pause_after_seconds": 0.5,
+        "delivery_note": "The comedy is in the understatement. Do not push it."
+      },
+      "metadata": null
+    },
+    {
+      "id": "s2-install",
+      "label": "One line installs it",
+      "text": "So the playbook is the product, and it installs in one line.",
+      "start_seconds": 7.4,
+      "end_seconds": 12.6,
+      "speaker_directions": "Narration ends before the command finishes typing. Let the terminal finish in silence. The command is `bunx oneshot-gtm-server` \u2014 the only published one-liner. Do not say 'installs it'; it runs, it does not install.",
+      "delivery_cues": {
+        "pace": "measured",
+        "energy": "flat",
+        "emphasis_words": ["playbook", "product"],
+        "pause_after_seconds": 0.35,
+        "delivery_note": "Do not read the command aloud. The viewer can see it. 'One line' must stay literally true.",
+        "pause_before_seconds": 0.0
+      },
+      "metadata": null
+    },
+    {
+      "id": "s3-plays",
+      "label": "The playbook as commands",
+      "text": "It encodes the pre-product-market-fit playbook as plays you actually run.",
+      "start_seconds": 12.6,
+      "end_seconds": 19.38,
+      "speaker_directions": "CLI beat. On-screen command is `bun run cli -- --help`, which is the real invocation. There is no bunx path to the CLI.",
+      "delivery_cues": {
+        "pace": "measured",
+        "energy": "flat",
+        "emphasis_words": ["run"],
+        "pause_after_seconds": 0.35,
+        "delivery_note": "These are load-bearing names for this audience. Say them cleanly, do not gloss.",
+        "pause_before_seconds": 0.0
+      },
+      "metadata": null
+    },
+    {
+      "id": "s4-gate",
+      "label": "The soft gate",
+      "text": "Ask it for a first sales hire before retention holds, and it tells you no.",
+      "start_seconds": 19.68,
+      "end_seconds": 25.47,
+      "speaker_directions": "The funniest line in the piece, delivered completely straight. On-screen command is `bun run cli -- handoff first-ae` (verified to exist). 'not yet' lands on the output appearing.",
+      "delivery_cues": {
+        "pace": "measured",
+        "energy": "flat, deadpan",
+        "emphasis_words": ["not yet"],
+        "pause_before_seconds": 0.3,
+        "pause_after_seconds": 0.5,
+        "delivery_note": "No smile in the voice. The tool refusing you is the feature."
+      },
+      "metadata": null
+    },
+    {
+      "id": "s5-finders",
+      "label": "The queue fills itself",
+      "text": "Ten finders discover prospects and filter them against your ideal customer profile.",
+      "start_seconds": 25.47,
+      "end_seconds": 33.75,
+      "speaker_directions": "Dashboard beat. Narration must sit under the queue populating, not over the moment a row lands.",
+      "delivery_cues": {
+        "pace": "conversational",
+        "energy": "flat",
+        "emphasis_words": ["ten", "you"],
+        "pause_after_seconds": 0.3,
+        "delivery_note": "'You approve, or you don't' is the human-in-the-loop claim. Give it a beat.",
+        "pause_before_seconds": 0.0
+      },
+      "metadata": null
+    },
+    {
+      "id": "s6-draft",
+      "label": "The replies",
+      "text": "Eight of them wrote back, and the cadence stops itself the moment someone answers.",
+      "start_seconds": 33.75,
+      "end_seconds": 39.55,
+      "speaker_directions": "Dashboard beat on /inbox. Silence over the reply expanding. Speak once the inbound body is on screen and settled. 'stops itself' is the product truth, not a boast.",
+      "delivery_cues": {
+        "pace": "measured",
+        "energy": "flat",
+        "emphasis_words": ["Eight", "itself"],
+        "pause_after_seconds": 0.35,
+        "delivery_note": "The system knowing when to shut up is the point. Flat, no satisfaction in the voice.",
+        "pause_before_seconds": 0.0
+      },
+      "metadata": null
+    },
+    {
+      "id": "s7-receipt",
+      "label": "The receipt",
+      "text": "Every paid action prints a signed receipt, so your customer acquisition cost is measured rather than estimated.",
+      "start_seconds": 39.85,
+      "end_seconds": 48.19,
+      "speaker_directions": "The centerpiece. Longest hold in the video. 'Measured, not estimated' lands on the signature scrolling into view, then hold in silence.",
+      "delivery_cues": {
+        "pace": "slow",
+        "energy": "flat, certain",
+        "emphasis_words": ["signed", "measured"],
+        "pause_before_seconds": 0.3,
+        "pause_after_seconds": 0.6,
+        "delivery_note": "This is the differentiator. Slowest line in the piece. Do not rush off it."
+      },
+      "metadata": null
+    },
+    {
+      "id": "s8-close",
+      "label": "Close",
+      "text": "It is open source under the MIT license, it runs on your machine, and you can read every prompt.",
+      "start_seconds": 48.59,
+      "end_seconds": 54.99,
+      "speaker_directions": "No lift, no call to action in the voice. The repo URL is on screen; the voice does not sell it.",
+      "delivery_cues": {
+        "pace": "measured",
+        "energy": "flat",
+        "emphasis_words": ["every"],
+        "pause_before_seconds": 0.4,
+        "delivery_note": "End cold. The last frame holds in silence after the line.",
+        "pause_after_seconds": 0.0
+      },
+      "metadata": null
+    }
+  ],
+  "metadata": {
+    "script_mode": "silent_source_tts_narration",
+    "script_mode_note": "There is no source recording with audio, so `transcriber` does not apply at this stage. The terminal half is authored, not captured, and the dashboard half is captured silently. Narration is written fresh and is TTS-bound. elevenlabs_tts is configured, so this script does not secretly depend on an unavailable provider.",
+    "muted_first_design": "X and LinkedIn both autoplay muted. Every section's claim must also exist as burned-in type or as legible on-screen UI. Narration reinforces; it never carries a fact alone. If the voice track were deleted the video must still make its argument, which is also why the silent variant remains a live option.",
+    "interaction_map": [
+      {
+        "timestamp_seconds": 0.0,
+        "action_type": "title",
+        "target": "burned-in type over black",
+        "importance": "critical",
+        "suggested_treatment": "realtime"
+      },
+      {
+        "timestamp_seconds": 7.5,
+        "action_type": "type",
+        "target": "bunx oneshot-gtm-server",
+        "importance": "critical",
+        "suggested_treatment": "realtime"
+      },
+      {
+        "timestamp_seconds": 11.0,
+        "action_type": "result",
+        "target": "dashboard opens at 127.0.0.1:3030",
+        "importance": "high",
+        "suggested_treatment": "realtime"
+      },
+      {
+        "timestamp_seconds": 14.5,
+        "action_type": "type",
+        "target": "bun run cli -- --help (play groups visible)",
+        "importance": "high",
+        "suggested_treatment": "speed_up"
+      },
+      {
+        "timestamp_seconds": 23.0,
+        "action_type": "type",
+        "target": "bun run cli -- handoff first-ae",
+        "importance": "critical",
+        "suggested_treatment": "realtime"
+      },
+      {
+        "timestamp_seconds": 26.5,
+        "action_type": "result",
+        "target": "soft gate returns 'not yet'",
+        "importance": "critical",
+        "suggested_treatment": "highlight"
+      },
+      {
+        "timestamp_seconds": 30.0,
+        "action_type": "navigate",
+        "target": "dashboard /queue",
+        "importance": "high",
+        "suggested_treatment": "realtime"
+      },
+      {
+        "timestamp_seconds": 32.0,
+        "action_type": "result",
+        "target": "queue rows populating from finders",
+        "importance": "critical",
+        "suggested_treatment": "speed_up"
+      },
+      {
+        "timestamp_seconds": 36.0,
+        "action_type": "click",
+        "target": "approve a row",
+        "importance": "high",
+        "suggested_treatment": "zoom"
+      },
+      {
+        "timestamp_seconds": 39.0,
+        "action_type": "result",
+        "target": "draft streaming in on /run/<play> with lint flags",
+        "importance": "critical",
+        "suggested_treatment": "speed_up"
+      },
+      {
+        "timestamp_seconds": 43.0,
+        "action_type": "result",
+        "target": "draft settled, readable",
+        "importance": "critical",
+        "suggested_treatment": "realtime"
+      },
+      {
+        "timestamp_seconds": 46.0,
+        "action_type": "click",
+        "target": "receipts row opens modal",
+        "importance": "critical",
+        "suggested_treatment": "zoom"
+      },
+      {
+        "timestamp_seconds": 48.0,
+        "action_type": "result",
+        "target": "signed receipt payload visible",
+        "importance": "critical",
+        "suggested_treatment": "realtime"
+      },
+      {
+        "timestamp_seconds": 51.5,
+        "action_type": "navigate",
+        "target": "/measure \u2014 CAC table",
+        "importance": "critical",
+        "suggested_treatment": "realtime"
+      },
+      {
+        "timestamp_seconds": 55.0,
+        "action_type": "title",
+        "target": "MIT / repo URL / bunx line",
+        "importance": "critical",
+        "suggested_treatment": "realtime"
+      }
+    ],
+    "speed_plan": [
+      {
+        "range_seconds": [14.5, 18.0],
+        "factor": "2.0x",
+        "reason": "--help output scroll has no learning value at full speed"
+      },
+      {
+        "range_seconds": [32.0, 35.5],
+        "factor": "3.0x",
+        "reason": "queue rows arriving; the fact that it fills itself is the point, not the wait"
+      },
+      {
+        "range_seconds": [39.0, 42.5],
+        "factor": "2.0x",
+        "reason": "token-by-token draft streaming; compress but keep the streaming texture visible"
+      },
+      {
+        "range_seconds": [45.5, 54.0],
+        "factor": "1.0x",
+        "reason": "PROOF MOMENT \u2014 receipt and CAC must never be inside a sped-up range"
+      },
+      {
+        "range_seconds": [23.0, 29.0],
+        "factor": "1.0x",
+        "reason": "PROOF MOMENT \u2014 the soft gate refusing the user is a claim, shown in real time"
+      }
+    ],
+    "callout_candidates": [
+      {
+        "at_seconds": 26.5,
+        "text": "not yet",
+        "note": "The refusal. Single accent, no arrow, no box. Let the terminal line carry it."
+      },
+      {
+        "at_seconds": 48.0,
+        "text": "signed",
+        "note": "Point at the signature field only. Everything else in the payload stays unannotated."
+      },
+      {
+        "at_seconds": 52.0,
+        "text": "real CAC",
+        "note": "Only if the figure reads at 1080p without a zoom. Otherwise cut the callout, not the beat."
+      }
+    ],
+    "sections_needing_zoom": ["s4-gate", "s7-receipt"],
+    "chapter_candidates": [
+      {
+        "at_seconds": 0,
+        "title": "The wedge"
+      },
+      {
+        "at_seconds": 6.5,
+        "title": "Install"
+      },
+      {
+        "at_seconds": 14,
+        "title": "The playbook, as commands"
+      },
+      {
+        "at_seconds": 29,
+        "title": "Discovery"
+      },
+      {
+        "at_seconds": 45.5,
+        "title": "Receipts"
+      }
+    ],
+    "pronunciation_guides": {
+      "bunx": "bunks",
+      "CAC": "spell it out, C-A-C, not 'cack'",
+      "GTM": "spell it out, G-T-M",
+      "ICP": "spell it out, I-C-P",
+      "MIT": "spell it out, M-I-T",
+      "oneshot-gtm": "one shot G-T-M"
+    },
+    "brand_voice_check": {
+      "banned_vocabulary_used": "none",
+      "note": "Checked against brands/oneshot.md. No instance of maybe, perhaps, innovative, revolutionary, excited, game-changing, synergy, ecosystem, leverage, crucial, delve, or landscape. Longest sentence is 13 words; mean is 8. Two inversions carry the piece: 'assumes you have PMF / most don't' and 'measured, not estimated'.",
+      "aphorisms_reused": "none \u2014 the brands/oneshot.md aphorism bank is written for the OneShot SDK, not for oneshot-gtm. Borrowing 'expensive interns' here would blur the two products.",
+      "em_dashes_on_canvas": "none"
+    },
+    "unresolved_dependency": {
+      "issue": "The s7-receipt beat depends on a receipt payload that can be shown publicly. See decision_log d-007. Privacy mode does not mask this surface and no payload in the live ledger is currently clean.",
+      "blocks": ["s7-receipt visual"],
+      "does_not_block": ["all other sections", "narration recording", "music"]
+    },
+    "command_verification": {
+      "verified_against": "npm registry + apps/cli/src/index.ts, 2026-08-17",
+      "exists": [
+        "bunx oneshot-gtm-server (published 0.7.0)",
+        "handoff first-ae",
+        "find",
+        "motion",
+        "cadence",
+        "doctor",
+        "init",
+        "ui"
+      ],
+      "does_not_exist": [
+        "bunx oneshot-gtm (E404 \u2014 CLI is not published)",
+        "measure (no such CLI group)",
+        "cac (no such subcommand)"
+      ],
+      "rule": "Every command shown on screen must be run and confirmed working before capture. A launch video that teaches a 404 is worse than no launch video."
+    },
+    "deliverables": {
+      "voiced_master": "60s, ElevenLabs narration + underscore. Primary for LinkedIn, where sound-on is more common.",
+      "silent_cut": "60s, same picture, underscore only, no voice. Primary for X, and the safe default for any muted autoplay.",
+      "shared": "One picture edit and one music bed serve both. Only the voice stem and two type treatments differ."
+    },
+    "silent_cut_deltas": {
+      "why_not_just_mute": "Two beats carry their content only in the narration. Muting them deletes the content rather than the sound.",
+      "sc3_plays": "PROMOTE to on-canvas type: 'Mom Test' / 'Sean Ellis 40%' / \"don't scale\" as three stacked mono labels beside the help output, landing one per second. In the voiced cut these stay uncaptioned to avoid double-stating.",
+      "sc6_draft": "PROMOTE: 'drafts, lints, sends' as three mono labels tracking the streaming draft; 'readable before it leaves' on the settle.",
+      "s1_s7_s8": "Already on canvas in both cuts. No change.",
+      "subtitles": "Voiced cut burns word-level captions. Silent cut burns NONE, since captions of absent speech read as broken.",
+      "timing": "Identical, 60.0s. The promoted type occupies beats the narration already owned, so no re-cut is needed."
+    },
+    "timing_source": "Rebuilt from measured eleven_v3 durations, not estimates. Each section = pause_before + measured VO + pause_after; 1.5s closing hold on the final card.",
+    "vo_manifest": {
+      "s1-wedge": {
+        "file": "assets/audio/v4_s1-wedge.mp3",
+        "duration": 6.4,
+        "vo_in_seconds": 0.35
+      },
+      "s2-install": {
+        "file": "assets/audio/v4_s2-install.mp3",
+        "duration": 4.0,
+        "vo_in_seconds": 7.4
+      },
+      "s3-plays": {
+        "file": "assets/audio/v4_s3-plays.mp3",
+        "duration": 5.28,
+        "vo_in_seconds": 12.6
+      },
+      "s4-gate": {
+        "file": "assets/audio/v4_s4-gate.mp3",
+        "duration": 4.64,
+        "vo_in_seconds": 19.68
+      },
+      "s5-finders": {
+        "file": "assets/audio/v4_s5-finders.mp3",
+        "duration": 4.88,
+        "vo_in_seconds": 25.47
+      },
+      "s6-draft": {
+        "file": "assets/audio/v4_s6-draft.mp3",
+        "duration": 4.8,
+        "vo_in_seconds": 33.75
+      },
+      "s7-receipt": {
+        "file": "assets/audio/v4_s7-receipt.mp3",
+        "duration": 7.44,
+        "vo_in_seconds": 39.85
+      },
+      "s8-close": {
+        "file": "assets/audio/v4_s8-close.mp3",
+        "duration": 6.4,
+        "vo_in_seconds": 48.59
+      }
+    },
+    "s6_variant": "B (replies). Variant A ('drafts, lints, sends') retained at vo_s6-draft_A-drafts.mp3.bak \u2014 demo mode has no last_draft to show, so A claimed something unshootable.",
+    "revision": "v4: female VO (ElevenLabs Sarah), no spoken abbreviations at all (go-to-market, ideal customer profile, customer acquisition cost written out), faster cut, graphics-led."
+  }
+}
