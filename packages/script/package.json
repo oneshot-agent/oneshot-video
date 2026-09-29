@@ -12,6 +12,7 @@
     ".": "./src/index.ts"
   },
   "dependencies": {
+    "@oneshot-agent/sdk": "^0.41.0",
     "@oneshot-agent/video-baseline": "workspace:*",
     "@oneshot-video/shared-types": "workspace:*"
   }

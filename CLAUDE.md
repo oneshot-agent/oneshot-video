@@ -13,4 +13,8 @@ source-published (no build step), like `@oneshot-gtm/*`.
 Stages that spend money (script → OneShot webRead, narrate → ElevenLabs) take injectable clients
 so tests never pay. `--dry-run` must exit before any network call.
 
+The film's primitives were ported from the author's own atelier composition in a checkout of
+OpenMontage. OpenMontage itself is AGPLv3: nothing from upstream — `lib/`, `pipelines/`, `skills/`,
+the stock scene types or the theme system — may be copied into this MIT repo or into OneShot.
+
 Never push, tag, or publish without being asked.

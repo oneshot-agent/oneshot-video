@@ -25,7 +25,9 @@
     "fmt": "oxfmt",
     "fmt:check": "oxfmt --check",
     "studio": "bun run --cwd packages/film studio",
-    "render": "bun run --cwd packages/film render"
+    "render": "bun run --cwd packages/film render",
+    "intake:serve": "bun run apps/intake/src/server.ts",
+    "intake:next": "bun run apps/intake/src/next.ts"
   },
   "devDependencies": {
     "@types/bun": "catalog:",
