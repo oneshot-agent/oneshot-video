@@ -8,38 +8,15 @@
 import { appendFileSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { APP_DIR, openSandbox, portAnswers, startProxy, type Box } from "./boot.ts";
+import { validateDemoPlan, type DemoPlan } from "./demo-plan.ts";
+import { buildTask } from "./task.ts";
 
-export const HARNESS_CAP_S = 480;
+export const HARNESS_CAP_S = Number(process.env["HARNESS_CAP_S"] ?? 480);
 const AGENT_MD_PATH = join(import.meta.dirname, "..", "harness", "AGENT.md");
 const DONE = "/home/user/.agent-done";
 const OUT = "/home/user/output";
 
-export type WorkflowAction =
-  | { op: "click"; selector: string }
-  | { op: "fill"; selector: string; value: string }
-  | { op: "wait"; ms: number }
-  | { op: "scroll"; px: number };
-
-export interface HarnessPlan {
-  app: { name: string; what_it_does: string; wedge_hint?: string; proof_hint?: string };
-  boot: {
-    install?: string;
-    start?: string;
-    port: number;
-    env?: Record<string, string>;
-    demo_mode?: string | null;
-    seeded?: string[];
-  };
-  workflow: {
-    id: string;
-    path: string;
-    caption: string;
-    shows?: string;
-    actions?: WorkflowAction[];
-  }[];
-  blocked: string | null;
-  notes?: string[];
-}
+export type HarnessPlan = DemoPlan;
 
 export interface HarnessOptions {
   repo_url: string;
@@ -64,46 +41,38 @@ export type HarnessResult =
     }
   | { ok: false; reason: string; box?: Box };
 
-const repoName = (url: string) =>
-  /github\.com\/([^/]+\/[^/#?]+)/.exec(url)?.[1]?.replace(/\.git$/, "") ?? url;
-
-/** task.json for run-agent.ts. Env values never go in; only their names (they arrive as process env). */
-export function harnessTask(opts: HarnessOptions) {
-  const hint = opts.hint?.trim() || "what the app is for, on real-looking data";
-  return {
-    objective: `Prepare ${repoName(opts.repo_url)} for a thirty-second launch film that shows: ${hint}. Write /home/user/output/demo-plan.json.`,
-    params: {
-      repo_url: opts.repo_url,
-      ref: opts.ref ?? null,
-      hint: opts.hint ?? null,
-      setup_hint: opts.setup_hint ?? null,
-      port_hint: 3000,
-      env_keys: Object.keys(opts.env ?? {}).toSorted(),
-    },
-    budget_usdc: 0,
-  };
-}
-
-/** Enough shape for the camera to act on. Card #6's validateDemoPlan replaces this. */
-export function checkPlan(
-  json: unknown,
-): { ok: true; plan: HarnessPlan } | { ok: false; errors: string[] } {
-  const errors: string[] = [];
-  const p = json as Partial<HarnessPlan> | null;
-  if (!p || typeof p !== "object") return { ok: false, errors: ["not an object"] };
-  if (!p.app?.name || !p.app.what_it_does) errors.push("app.name / app.what_it_does missing");
-  if (!Number.isInteger(p.boot?.port)) errors.push("boot.port not an integer");
-  const blocked = typeof p.blocked === "string" ? p.blocked : null;
-  const steps = Array.isArray(p.workflow) ? p.workflow : [];
-  if (!blocked && (steps.length < 1 || steps.length > 6))
-    errors.push(`workflow has ${steps.length} steps`);
-  steps.forEach((s, i) => {
-    if (typeof s?.path !== "string" || !s.path.startsWith("/")) errors.push(`workflow[${i}].path`);
-    if (typeof s?.id !== "string") errors.push(`workflow[${i}].id`);
-  });
-  return errors.length
-    ? { ok: false, errors }
-    : { ok: true, plan: { ...(p as HarnessPlan), blocked } };
+/**
+ * Small defects in an otherwise usable plan are fixed here rather than throwing away a whole agent
+ * run: long captions are cut to 12 words, a missing `shows` takes the caption, missing boot fields
+ * take their empty defaults. Anything structural is left for validateDemoPlan to reject.
+ */
+export function repairPlan(json: unknown): unknown {
+  if (!json || typeof json !== "object") return json;
+  const p = structuredClone(json) as Record<string, any>;
+  if (p["boot"] && typeof p["boot"] === "object") {
+    const b = p["boot"];
+    b.install ??= "";
+    b.start ??= "";
+    b.env ??= {};
+    b.demo_mode ??= null;
+    b.seeded ??= [];
+    if (typeof b.port === "string" && /^\d+$/.test(b.port)) b.port = Number(b.port);
+  }
+  p["blocked"] ??= null;
+  if (Array.isArray(p["workflow"]))
+    for (const step of p["workflow"]) {
+      if (!step || typeof step !== "object") continue;
+      if (typeof step.caption === "string") {
+        const words = step.caption.trim().split(/\s+/);
+        if (words.length > 12)
+          step.caption = words
+            .slice(0, 12)
+            .join(" ")
+            .replace(/[,;:]$/, "");
+      }
+      if (typeof step.shows !== "string" || !step.shows) step.shows = step.caption ?? "";
+    }
+  return p;
 }
 
 export async function runHarness(opts: HarnessOptions): Promise<HarnessResult> {
@@ -118,7 +87,7 @@ export async function runHarness(opts: HarnessOptions): Promise<HarnessResult> {
   const box = await openSandbox(opts.env ?? {}, log);
   const { sbx, run } = box;
   const t0 = Date.now();
-  const task = harnessTask(opts);
+  const task = buildTask(opts);
   writeFileSync(join(opts.runDir, "task.json"), JSON.stringify(task, null, 2));
   await sbx.files.write("/home/user/AGENT.md", readFileSync(AGENT_MD_PATH, "utf8"));
   await sbx.files.write("/home/user/task.json", JSON.stringify(task, null, 2));
@@ -205,7 +174,7 @@ touch ${DONE}
       box,
     };
   }
-  const checked = checkPlan(parsed);
+  const checked = validateDemoPlan(repairPlan(parsed));
   if (!checked.ok) return { ok: false, reason: `invalid plan: ${checked.errors.join("; ")}`, box };
   const plan = checked.plan;
   if (plan.blocked) return { ok: false, reason: `blocked: ${plan.blocked}`, box };

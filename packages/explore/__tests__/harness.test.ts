@@ -1,48 +1,47 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { checkPlan, harnessTask } from "../src/harness.ts";
+import { validateDemoPlan } from "../src/demo-plan.ts";
+import { repairPlan } from "../src/harness.ts";
 
-const plan = {
+// The shape the agent wrote on oneshot-gtm, with the defects a model tends to leave in it.
+const agentPlan = {
   app: { name: "oneshot-gtm", what_it_does: "Finds leads and drafts replies." },
-  boot: { start: "bun run dev", port: 3000 },
+  boot: { install: "bun install", start: "bun run apps/server/src/bin.ts", port: "3000" },
   workflow: [
-    { id: "landing", path: "/", caption: "The queue." },
-    { id: "reply", path: "/replies", caption: "A reply, drafted." },
-    { id: "receipt", path: "/receipts", caption: "A signed receipt." },
+    { id: "home", path: "/", caption: "Dashboard: 445 dollars spent, nineteen replies this week" },
+    {
+      id: "queue",
+      path: "/queue",
+      caption:
+        "Five prospects pending approval: Ida from Cutter, Tom from Halyard, Gabriel from Ridgeline, and more",
+      shows: "The target queue",
+    },
+    { id: "receipts", path: "/receipts", caption: "66,468 signed receipts.", shows: "Receipts" },
   ],
-  blocked: null,
 };
 
 describe("harness", () => {
-  it("task.json names env keys, never their values", () => {
-    const task = harnessTask({
-      repo_url: "https://github.com/oneshot-agent/oneshot-gtm",
-      hint: "a signed receipt",
-      env: { B: "x", A: "secret-value" },
-      runDir: "/tmp/x",
-    });
-    expect(task.objective).toContain("oneshot-agent/oneshot-gtm");
-    expect(task.objective).toContain("a signed receipt");
-    expect(task.budget_usdc).toBe(0);
-    expect(task.params.env_keys).toEqual(["A", "B"]);
-    expect(JSON.stringify(task)).not.toContain("secret-value");
+  it("repairs the small defects so a usable agent plan validates", () => {
+    expect(validateDemoPlan(agentPlan).ok).toBe(false);
+    const r = validateDemoPlan(repairPlan(agentPlan));
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.plan.boot.port).toBe(3000);
+    expect(r.plan.workflow[1]?.caption.split(/\s+/).length).toBeLessThanOrEqual(12);
+    expect(r.plan.workflow[0]?.shows).toBe(agentPlan.workflow[0]?.caption);
+    expect(r.plan.blocked).toBeNull();
   });
 
-  it("accepts a well-formed plan and a blocked one with no steps", () => {
-    expect(checkPlan(plan).ok).toBe(true);
-    expect(checkPlan({ ...plan, workflow: [], blocked: "needs a hosted Postgres" }).ok).toBe(true);
-  });
-
-  it("rejects a plan the camera cannot act on", () => {
-    const r = checkPlan({ ...plan, boot: { port: "3000" }, workflow: [{ id: "a", path: "x" }] });
-    expect(r.ok).toBe(false);
-    if (!r.ok) expect(r.errors.join(" ")).toMatch(/boot\.port.*workflow\[0\]\.path/);
+  it("leaves structural defects for the validator to reject", () => {
+    const broken = { ...agentPlan, workflow: [{ id: "a", path: "x", caption: "c" }] };
+    expect(validateDemoPlan(repairPlan(broken)).ok).toBe(false);
   });
 
   it("the playbook tells the agent to start a server that outlives it", () => {
     const md = readFileSync(join(import.meta.dirname, "..", "harness", "AGENT.md"), "utf8");
     expect(md).toContain("setsid nohup");
     expect(md).toMatch(/no `tool_used`/);
+    expect(md).toMatch(/50 turns/);
   });
 });

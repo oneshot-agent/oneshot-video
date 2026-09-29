@@ -5,16 +5,22 @@
  */
 import { writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { HEIGHT, WIDTH } from "@oneshot-agent/video-baseline";
 import type { Explored } from "@oneshot-video/shared-types";
 import { bootRepo, type BootResult } from "./boot.ts";
 import { runHarness, type HarnessResult } from "./harness.ts";
 import { shootPages } from "./pages.ts";
+import { runWorkflow, type WorkflowStep } from "./workflow.ts";
 
 export { bootRepo, readRepoFacts, E2B_TEMPLATE, BOOT_CAP_S } from "./boot.ts";
 export { recipeFor, parseSetupHint } from "./recipe.ts";
 export { shootPages } from "./pages.ts";
 export type { BootResult } from "./boot.ts";
-export { runHarness, harnessTask, checkPlan, HARNESS_CAP_S } from "./harness.ts";
+export { runHarness, repairPlan, HARNESS_CAP_S } from "./harness.ts";
+export { validateDemoPlan } from "./demo-plan.ts";
+export type { DemoPlan } from "./demo-plan.ts";
+export { buildTask, buildObjective, checkAgentMd } from "./task.ts";
+export { runWorkflow, playwrightPage } from "./workflow.ts";
 export type { HarnessPlan, HarnessResult } from "./harness.ts";
 
 export interface ExploreOptions {
@@ -43,8 +49,9 @@ export async function explore(opts: ExploreOptions): Promise<Explored> {
   let base_url = opts.app_url ?? "";
   let boot: Explored["boot"] = { backend: "none", seconds: 0 };
   let stop: (() => Promise<void>) | undefined;
-  let want = opts.want ?? pathsFromHint(opts.setup_hint);
+  const want = opts.want ?? pathsFromHint(opts.setup_hint);
   let harness: Explored["harness"];
+  let steps: WorkflowStep[] | undefined;
   if (opts.repo_url) {
     const bootOpts = {
       repo_url: opts.repo_url,
@@ -75,8 +82,13 @@ export async function explore(opts: ExploreOptions): Promise<Explored> {
         seeded: h.plan.boot.seeded ?? [],
         turns: h.turns,
       };
-      // Until runWorkflow (card #7) lands, the plan's paths are the shot list, in its order.
-      want = [...new Set(h.plan.workflow.map((s) => s.path))];
+      // validateDemoPlan has checked each action carries the fields its op needs.
+      steps = h.plan.workflow.map(({ id, path, caption, actions }) => ({
+        id,
+        path,
+        caption,
+        actions: actions as WorkflowStep["actions"],
+      }));
       stop = h.stop;
     } else {
       log(`harness: ${h.reason} → recipe boot${h.box ? " in the same sandbox" : ""}`);
@@ -96,13 +108,28 @@ export async function explore(opts: ExploreOptions): Promise<Explored> {
     }
   }
   try {
-    const shots = await shootPages({
-      base_url,
-      outDir: join(opts.runDir, "pages"),
-      want,
-      max: harness ? Math.max(4, want.length) : undefined,
-      log,
-    });
+    const outDir = join(opts.runDir, "pages");
+    // A harness plan is shot as a workflow (visit, click, fill, wait, scroll, still); anything
+    // else walks the landing's links.
+    const shots = steps
+      ? await runWorkflow({ base_url, steps, outDir, log }).then((w) => {
+          writeFileSync(
+            join(opts.runDir, "workflow-actions.json"),
+            JSON.stringify(w.actions, null, 2),
+          );
+          return {
+            observed: w.observed,
+            pages: w.pages.map((p) => ({
+              url: p.url,
+              path: steps?.find((s) => s.id === p.id)?.path ?? "/",
+              title: p.caption,
+              png: p.png,
+              width: WIDTH,
+              height: HEIGHT,
+            })),
+          };
+        })
+      : await shootPages({ base_url, outDir, want, log });
     const explored: Explored = {
       base_url,
       pages: shots.pages,
