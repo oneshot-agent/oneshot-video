@@ -24,7 +24,7 @@ describe("buildScript", () => {
   it("refuses a v1-shaped script and names the gates", async () => {
     await expect(
       buildScript({ app_url: "https://x", webRead, llm: async () => fx("v1-shaped.script.json") }),
-    ).rejects.toThrow(/after 3 attempts.*voiceLint.*dontReadTheCommand.*silenceRespected/s);
+    ).rejects.toThrow(/after 5 attempts.*voiceLint.*dontReadTheCommand.*silenceRespected/s);
   });
   it("prompts carry the shape, the budget and the exemplar", () => {
     expect(systemPrompt()).toMatch(/thirty-second/);

@@ -52,7 +52,7 @@ export function stillsAsImages(stills: { png: string }[]): string[] {
 }
 
 const STILLS_NOTE = (n: number) =>
-  `\n\n## The footage\nThe ${n} attached images are the film's stills, in order: capture beat 1 shows still 1, and so on. Write only what they show. Every number, name and label you put on screen or in the voice must be readable in one of them; if a fact is only in the text above and not visible, leave it out. Do not add anything you know about the app or its data from elsewhere.`;
+  `\n\n## The footage\nThe ${n} attached images are the film's stills, in order: capture beat 1 shows still 1, and so on. Write only what they show. Every number, name and label you put on screen or in the voice must be readable in one of them; if a fact is only in the text above and not visible, leave it out. Do not add anything you know about the app or its data from elsewhere. The exact words and numbers go in on_screen; the voice says what they mean in its own words and never reads a label, button or heading aloud (say \"pick an actor\", not \"Select a person\").`;
 
 export function systemPrompt(): string {
   return readFileSync(PROMPT_PATH, "utf8");
@@ -233,7 +233,7 @@ export function gateScript(script: Script, length_s = 30, source?: string): void
   }
 }
 
-export const MAX_ATTEMPTS = 3;
+export const MAX_ATTEMPTS = 5;
 
 /** What to cut, section by section, in numbers the model can act on. */
 function cutList(script: Script, length_s: number): string {
