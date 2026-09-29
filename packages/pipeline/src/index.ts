@@ -4,6 +4,7 @@
  * The film is cut from those stills with the launch film's camera moves. The old continuous
  * recording stays as an option (`video: true`) for a deployed URL.
  */
+import { progressFrom, ROOT, runDir, updateStatus, type StatusStage } from "./status.ts";
 import { spawnSync } from "node:child_process";
 import {
   appendFileSync,
@@ -51,9 +52,9 @@ export const STAGE_NOTES: Record<Stage, string> = {
   render: "Remotion DemoVideo + DemoVideoSilent; bed at 0.40 under narration, 0.85 alone",
 };
 
-export const ROOT = process.env["ONESHOT_VIDEO_ROOT"] ?? process.cwd();
+export { ROOT, runDir, readStatus, updateStatus, STATUS_STAGES } from "./status.ts";
+export type { Status, StatusStage } from "./status.ts";
 export const FILM_DIR = resolve(ROOT, "packages/film");
-export const runDir = (id: string) => join(ROOT, "runs", id);
 
 export class EventLog {
   constructor(public readonly path: string) {
@@ -66,13 +67,13 @@ export class EventLog {
   }
 }
 
-/** The line the intake status page reads. Same shape as apps/intake's Status. */
-export function writeStatus(id: string, stage: string, extra: Record<string, unknown> = {}): void {
-  mkdirSync(runDir(id), { recursive: true });
-  writeFileSync(
-    join(runDir(id), "status.json"),
-    JSON.stringify({ id, stage, updated: new Date().toISOString(), ...extra }, null, 2),
-  );
+/** Move the run's status record to a stage; extra fields merge into it. */
+export function writeStatus(
+  id: string,
+  stage: StatusStage,
+  extra: Parameters<typeof updateStatus>[1] = {},
+): void {
+  updateStatus(id, { ...extra, stage });
 }
 
 const defaultKind = (i: number, n: number): Scene["kind"] =>
@@ -474,7 +475,11 @@ export async function run(opts: RunOptions): Promise<RenderResult> {
   const dir = runDir(id);
   mkdirSync(dir, { recursive: true });
   const log = new EventLog(opts.eventsPath ?? join(dir, "events.jsonl"));
-  const say = (line: string) => log.write({ tool: "explore", event: "start", note: line });
+  const progress = progressFrom(id);
+  const say = (line: string) => {
+    log.write({ tool: "explore", event: "start", note: line });
+    progress.line(line);
+  };
   const length_s = opts.length_s ?? 30;
   const target = opts.repo_url ?? (opts.app_url as string);
 
@@ -517,7 +522,7 @@ export async function run(opts: RunOptions): Promise<RenderResult> {
       runDir: dir,
       log: say,
     });
-    if (opts.repo_url) writeStatus(id, "shooting");
+    progress.flush();
     pages = ex.pages;
     observed = ex.observed;
     boot = ex.boot;

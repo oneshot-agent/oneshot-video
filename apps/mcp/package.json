@@ -8,6 +8,7 @@
     ".": "./src/index.ts"
   },
   "dependencies": {
+    "@oneshot-video/intake": "workspace:*",
     "@oneshot-video/pipeline": "workspace:*",
     "@oneshot-video/shared-types": "workspace:*"
   }

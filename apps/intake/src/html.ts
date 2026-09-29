@@ -4,7 +4,7 @@
  * with a glowing head that travels down and lights each section marker as it passes.
  * The palette is the product site's, kept here on purpose; the film has its own.
  */
-import type { Status, Submission } from "./queue.ts";
+import { STATUS_NOTES, STATUS_STAGES, type Status, type Submission } from "./queue.ts";
 
 export const TUNNEL_HINT = "cloudflared tunnel --url http://localhost:3000";
 
@@ -105,6 +105,20 @@ const css = `
   @keyframes sweep-life { 0%, 90% { opacity: 1; } 100% { opacity: 0; } }
   @media (prefers-reduced-motion: reduce) { .sweep { display: none; } }
   @media (max-width: 720px) { main { padding: 6rem 1.25rem 4rem; } .rail-svg { display: none; } }
+  .live { flex-basis: 100%; margin: .2rem 0 0 2.5rem; max-width: 62rem; }
+  .live:empty { display: none; }
+  @media (max-width: 640px) { .live { margin-left: 0; } }
+  .detail { font-family: 'Geist Mono', ui-monospace, monospace; font-size: .8rem; color: ${OS.lit}; }
+  .detail .elapsed { color: #68746d; margin-left: .8rem; }
+  .agent { margin-top: 1rem; padding: 1rem 1.2rem; border: 1px solid ${OS.rule}; border-radius: .65rem; background: ${OS.graphite}; font-family: 'Geist Mono', ui-monospace, monospace; font-size: .76rem; color: #cbd5cf; }
+  .agent .label { color: ${OS.muted}; text-transform: uppercase; letter-spacing: .08em; font-size: .68rem; }
+  .turnbar { margin: .5rem 0 .8rem; height: 4px; border-radius: 2px; background: ${OS.rule}; overflow: hidden; }
+  .turnbar i { display: block; height: 100%; background: ${OS.green}; box-shadow: 0 0 10px ${OS.green}; transition: width .6s ease; }
+  .agent ul { margin: .4rem 0 0; padding-left: 1.1rem; line-height: 1.6; }
+  .agent ol { margin: .4rem 0 0; padding-left: 1.3rem; line-height: 1.6; color: ${OS.white}; }
+  .agent ol code { color: ${OS.green}; }
+  .filmstrip { margin-top: 1rem; display: grid; grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr)); gap: .6rem; }
+  .filmstrip img { width: 100%; aspect-ratio: 16 / 9; object-fit: cover; border: 1px solid ${OS.rule}; border-radius: .4rem; background: ${OS.field}; }
 `;
 
 /** The rail: measures the markers, draws the paths, walks the head down to its resting marker. */
@@ -174,7 +188,7 @@ const railScript = `
 const shell = (
   title: string,
   body: string,
-  opts: { refresh?: number; restAt?: number; railKey?: string } = {},
+  opts: { refresh?: number; restAt?: number; railKey?: string; script?: string } = {},
 ) => `<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>${esc(title)}</title>${opts.refresh ? `<meta http-equiv="refresh" content="${opts.refresh}">` : ""}
@@ -187,7 +201,7 @@ const shell = (
 ${body}
 <footer>Built at The AI Conference Hack Day, 29 Sep 2026. MIT. The film is fixed on purpose.<br><a href="https://github.com/oneshot-agent/oneshot-video">github.com/oneshot-agent/oneshot-video</a> · <a href="https://oneshotagent.com">oneshotagent.com</a></footer>
 </main>
-<script>${railScript}</script>
+<script>${railScript}</script>${opts.script ? `<script>${opts.script}</script>` : ""}
 </body></html>`;
 
 export function formPage(opts: { error?: "invalid" | "local"; url?: string } = {}): string {
@@ -205,9 +219,9 @@ export function formPage(opts: { error?: "invalid" | "local"; url?: string } = {
 <p class="deck">Thirty seconds, voiced and silent. The voice, the score, the palette and the cut are fixed, so every team gets the same film. Free during Hack Day.</p>
 ${warn}
 <form method="post" action="/submit">
-  <label for="url">app url</label>
-  <div class="field"><span class="prompt">$</span><input id="url" name="url" type="url" required placeholder="https://your.app" value="${esc(opts.url ?? "")}" autocomplete="off"></div>
-  <p class="hint">Public URL only. localhost is not reachable from here: <code>${TUNNEL_HINT}</code>, or a preview deploy.</p>
+  <label for="url">app url or GitHub repo</label>
+  <div class="field"><span class="prompt">$</span><input id="url" name="url" type="url" required placeholder="https://your.app or https://github.com/you/app" value="${esc(opts.url ?? "")}" autocomplete="off"></div>
+  <p class="hint">A public GitHub repo is booted in a sandbox, seeded and filmed. An app URL must be public; localhost is not reachable from here: <code>${TUNNEL_HINT}</code>, or a preview deploy.</p>
   <label for="contact">where to find you</label>
   <div class="field"><input id="contact" name="contact" type="text" placeholder="email or discord handle"></div>
   <label for="hint">one line on what to show <span style="text-transform:none;letter-spacing:0">(optional)</span></label>
@@ -219,33 +233,63 @@ ${warn}
   );
 }
 
-const STAGES: Status["stage"][] = [
-  "queued",
-  "script",
-  "recording",
-  "narrating",
-  "planning",
-  "gates",
-  "rendering",
-  "done",
-];
-const STAGE_NOTES: Record<Status["stage"], string> = {
-  queued: "waiting its turn",
-  script: "reading the page, writing the words",
-  recording: "driving the app, recording",
-  narrating: "one stem per line, measured",
-  planning: "windows from the stems",
-  gates: "eleven checks before render",
-  rendering: "two cuts",
-  done: "both cuts below",
-  failed: "",
+const STAGES = STATUS_STAGES;
+
+const clock = (ms: number) => {
+  const s = Math.max(0, Math.round(ms / 1000));
+  return s < 60 ? `${s}s` : `${Math.floor(s / 60)}m ${String(s % 60).padStart(2, "0")}s`;
 };
 
-export function statusPage(sub: Submission | undefined, st: Status): string {
+/** How long a stage took, or has taken so far. */
+function stepTime(st: Status, stage: string, now: number): string {
+  const step = st.steps?.findLast((x) => x.stage === stage);
+  if (!step) return "";
+  return clock((step.finished ? Date.parse(step.finished) : now) - Date.parse(step.started));
+}
+
+/**
+ * The part of the status page that changes between stages: the latest line, the agent's turn
+ * and notes, the plan once written, the stills as they land. Served inside the page and inside
+ * /r/<id>.json, so the page's poll swaps it in without a second renderer.
+ */
+export function liveFragment(st: Status, now = Date.now()): string {
+  if (st.stage === "done" || st.stage === "failed") return "";
+  const since = st.started ? clock(now - Date.parse(st.started)) : "";
+  const detail = st.detail
+    ? `<p class="detail">${esc(st.detail)}${since ? `<span class="elapsed">${since} in</span>` : ""}</p>`
+    : "";
+  const h = st.harness;
+  const agent = h
+    ? `<div class="agent"><span class="label">agent in the sandbox · turn ${h.turn} of ${h.max}</span>
+<div class="turnbar"><i style="width:${Math.min(100, Math.round((h.turn / h.max) * 100))}%"></i></div>
+${h.plan ? `<span class="label">what it will show · ${esc(h.plan.app.name)}</span><ol>${h.plan.workflow.map((w) => `<li><code>${esc(w.path)}</code> ${esc(w.caption)}</li>`).join("")}</ol>` : ""}
+${h.notes?.length ? `<span class="label">what it has found</span><ul>${h.notes.map((n) => `<li>${esc(n)}</li>`).join("")}</ul>` : ""}</div>`
+    : "";
+  const strip = st.stills?.length
+    ? `<div class="filmstrip">${st.stills.map((_, i) => `<img loading="lazy" alt="still ${i + 1}" src="/r/${esc(st.id)}/stills/${i}.png">`).join("")}</div>`
+    : "";
+  return detail + agent + strip;
+}
+
+/** Polls the JSON twin: swaps the live block, reloads once when the stage moves (the rail animates on load). */
+const pollScript = (id: string, stage: string) => `
+(function () {
+  var stage = ${JSON.stringify(stage)}, box = document.getElementById('live');
+  function tick() {
+    fetch('/r/${id}.json', { cache: 'no-store' }).then(function (r) { return r.json(); }).then(function (s) {
+      if (s.stage !== stage) { location.reload(); return; }
+      if (box && typeof s.live_html === 'string' && box.innerHTML !== s.live_html) box.innerHTML = s.live_html;
+      setTimeout(tick, 3000);
+    }).catch(function () { setTimeout(tick, 6000); });
+  }
+  setTimeout(tick, 3000);
+})();
+`;
+
+export function statusPage(sub: Submission | undefined, st: Status, now = Date.now()): string {
   const failed = st.stage === "failed";
-  const currentIdx = failed
-    ? Math.max(0, STAGES.indexOf(failedStage(st)))
-    : STAGES.indexOf(st.stage);
+  const failedAt = st.steps?.at(-1)?.stage ?? "script";
+  const currentIdx = STAGES.indexOf((failed ? failedAt : st.stage) as (typeof STAGES)[number]);
   const rows = STAGES.map((s, i) => {
     const cls = [
       "stage-row",
@@ -255,11 +299,25 @@ export function statusPage(sub: Submission | undefined, st: Status): string {
     ]
       .filter(Boolean)
       .join(" ");
+    const took = stepTime(st, s, now);
     const note =
-      i === currentIdx ? (failed ? "stopped here" : STAGE_NOTES[s]) : i < currentIdx ? "done" : "";
+      i === currentIdx
+        ? failed
+          ? "stopped here"
+          : STATUS_NOTES[s]
+        : i < currentIdx
+          ? took
+            ? `done in ${took}`
+            : "done"
+          : "";
     const err =
       i === currentIdx && failed ? `<pre class="error">${esc(st.error ?? "failed")}</pre>` : "";
-    return `<section class="${cls}"><p class="section-marker">${s}</p><span class="note">${esc(note)}</span>${err}</section>`;
+    // The live block sits in the current stage's row, where the eye already is.
+    const liveBox =
+      i === currentIdx && !failed && st.stage !== "done"
+        ? `<div id="live" class="live">${liveFragment(st, now)}</div>`
+        : "";
+    return `<section class="${cls}"><p class="section-marker">${s}</p><span class="note">${esc(note)}</span>${err}${liveBox}</section>`;
   }).join("");
   const done = st.stage === "done";
   const card = done
@@ -268,31 +326,36 @@ export function statusPage(sub: Submission | undefined, st: Status): string {
 ${st.gates?.length ? `<table><tr><th>gate</th><th>result</th></tr>${st.gates.map((g) => `<tr><td>${esc(g.name)}</td><td class="${g.ok ? "ok" : "bad"}">${esc(g.reason)}</td></tr>`).join("")}</table>` : ""}</div>`
     : "";
   const live = !done && !failed;
-  const host = sub ? new URL(sub.url).hostname : st.id;
+  const host = sub
+    ? sub.kind === "repo"
+      ? new URL(sub.url).pathname.slice(1)
+      : new URL(sub.url).hostname
+    : st.id;
+  const headline = !live
+    ? done
+      ? "Done."
+      : "It did not ship."
+    : st.stage === "queued"
+      ? "In the queue."
+      : st.stage === "booting"
+        ? "Setting it up."
+        : "On it.";
   return shell(
     `OneShot video · ${host} · ${st.stage}`,
     `<section class="copy">
 <p class="hero-context">${esc(host)}</p>
-<h1>${live ? "In the queue." : done ? "Done." : "It did not ship."}</h1>
-<p class="deck">${live ? "This page refreshes itself. Keep it open; the head moves as the run does." : done ? "Thirty seconds, voiced and silent, both below." : "The run stopped and said why. Fix the URL or the page, and queue it again."}</p>
+<h1>${headline}</h1>
+<p class="deck">${live ? "Keep this page open; it follows the run as it goes. A repo takes a few minutes before the camera starts." : done ? "Thirty seconds, voiced and silent, both below." : "The run stopped and said why. Fix the URL or the page, and queue it again."}</p>
 </section>
 <div class="stages">${rows}</div>
 ${card}
-<p class="meta">run <code>${esc(st.id)}</code>${sub?.contact ? ` · ${esc(sub.contact)}` : ""}${sub?.hint ? ` · “${esc(sub.hint)}”` : ""}</p>`,
-    { refresh: live ? 10 : undefined, restAt: 1 + currentIdx, railKey: `rail:${st.id}` },
+<p class="meta">run <code>${esc(st.id)}</code>${sub?.contact ? ` · ${esc(sub.contact)}` : ""}${sub?.hint ? ` · “${esc(sub.hint)}”` : ""} · <a class="text-link" href="/r/${esc(st.id)}.json">json</a></p>`,
+    {
+      restAt: 1 + Math.max(0, currentIdx),
+      railKey: `rail:${st.id}`,
+      script: live ? pollScript(st.id, st.stage) : undefined,
+    },
   );
-}
-
-/** Which stage a failed run was in, from its error text; the status only says "failed". */
-function failedStage(st: Status): Status["stage"] {
-  const e = (st.error ?? "").toLowerCase();
-  if (e.startsWith("script")) return "script";
-  if (e.includes("record") || e.includes("playwright") || e.includes("ffmpeg")) return "recording";
-  if (e.includes("elevenlabs") || e.includes("narrate")) return "narrating";
-  if (e.includes("planscenes")) return "planning";
-  if (e.includes("taste gates")) return "gates";
-  if (e.includes("remotion")) return "rendering";
-  return "script";
 }
 
 export function adminPage(rows: { sub: Submission; st: Status }[]): string {

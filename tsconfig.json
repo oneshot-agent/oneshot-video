@@ -13,6 +13,7 @@
       "@oneshot-video/record": ["./packages/record/src/index.ts"],
       "@oneshot-video/narrate": ["./packages/narrate/src/index.ts"],
       "@oneshot-video/pipeline": ["./packages/pipeline/src/index.ts"],
+      "@oneshot-video/pipeline/status": ["./packages/pipeline/src/status.ts"],
       "@oneshot-video/explore": ["./packages/explore/src/index.ts"],
       "@oneshot-video/intake": ["./apps/intake/src/server.ts"]
     }

@@ -163,8 +163,13 @@ export async function main(argv: string[], fetchImpl: typeof fetch = fetch): Pro
     console.log(renderPlan(args));
     return 0;
   }
+  // The run's id is minted here so its status URL can be printed before any work starts.
+  const id = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
+  const publicUrl = process.env["PUBLIC_URL"]?.replace(/\/+$/, "");
+  if (publicUrl) console.log(`status: ${publicUrl}/r/${id}`);
   try {
     const r = await run({
+      id,
       app_url: args.app_url,
       length_s: args.length_s,
       silentOnly: args.silentOnly,

@@ -1,41 +1,32 @@
 /** One JSONL file, append-only for submissions; status lives in runs/<id>/status.json. */
-import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { appendFileSync, existsSync, mkdirSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
+import {
+  ROOT,
+  runDir,
+  statusPath,
+  readStatus,
+  updateStatus,
+  STATUS_STAGES,
+  STATUS_NOTES,
+  type Status,
+  type StatusStage,
+} from "@oneshot-video/pipeline/status";
 
 export interface Submission {
   id: string;
   url: string;
+  /** app: a deployed URL, shot as it is. repo: a GitHub repo, booted and prepared in a sandbox. */
+  kind?: "app" | "repo";
   contact: string;
   hint: string;
   ts: string;
 }
 
-export type Stage =
-  | "queued"
-  | "script"
-  | "recording"
-  | "narrating"
-  | "planning"
-  | "gates"
-  | "rendering"
-  | "done"
-  | "failed";
+export { ROOT, runDir, statusPath, readStatus, STATUS_STAGES, STATUS_NOTES };
+export type { Status, StatusStage };
 
-export interface Status {
-  id: string;
-  stage: Stage;
-  updated: string;
-  error?: string;
-  video?: string;
-  silent?: string;
-  cost_usd?: number;
-  gates?: { name: string; ok: boolean; reason: string }[];
-}
-
-export const ROOT = process.env["ONESHOT_VIDEO_ROOT"] ?? process.cwd();
 export const QUEUE_PATH = join(ROOT, "intake", "queue.jsonl");
-export const runDir = (id: string) => join(ROOT, "runs", id);
-export const statusPath = (id: string) => join(runDir(id), "status.json");
 
 export const newId = () => `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
 
@@ -55,15 +46,10 @@ export function listSubmissions(): Submission[] {
     .map((l) => JSON.parse(l) as Submission);
 }
 
-export function readStatus(id: string): Status {
-  const p = statusPath(id);
-  if (!existsSync(p)) return { id, stage: "queued", updated: "" };
-  return JSON.parse(readFileSync(p, "utf8")) as Status;
-}
-
-export function writeStatus(s: Status): void {
-  mkdirSync(runDir(s.id), { recursive: true });
-  writeFileSync(statusPath(s.id), JSON.stringify(s, null, 2));
+/** Merge into the run's status record (atomic; see @oneshot-video/pipeline/status). */
+export function writeStatus(s: Partial<Status> & { id: string }): void {
+  const { id, ...patch } = s;
+  updateStatus(id, patch);
 }
 
 /** Oldest submission still queued, or null. */
@@ -74,10 +60,15 @@ export function nextQueued(): Submission | null {
 
 const LOCAL_HOSTS = /^(localhost|127\.0\.0\.1|0\.0\.0\.0|\[::1\]|.*\.local)$/i;
 
-/** http(s), reachable from somewhere that is not the submitter's laptop. */
+const GITHUB_REPO = /^\/([A-Za-z0-9_.-]+)\/([A-Za-z0-9_.-]+?)(?:\.git)?(?:\/.*)?$/;
+
+/**
+ * http(s), reachable from somewhere that is not the submitter's laptop. A github.com/<owner>/<repo>
+ * URL is a repo to boot, normalised to its root.
+ */
 export function validateUrl(
   raw: string,
-): { ok: true; url: string } | { ok: false; reason: "invalid" | "local" } {
+): { ok: true; url: string; kind: "app" | "repo" } | { ok: false; reason: "invalid" | "local" } {
   let u: URL;
   try {
     u = new URL(raw.trim());
@@ -86,5 +77,10 @@ export function validateUrl(
   }
   if (u.protocol !== "http:" && u.protocol !== "https:") return { ok: false, reason: "invalid" };
   if (LOCAL_HOSTS.test(u.hostname)) return { ok: false, reason: "local" };
-  return { ok: true, url: u.toString() };
+  if (u.hostname === "github.com" || u.hostname === "www.github.com") {
+    const m = GITHUB_REPO.exec(u.pathname);
+    if (!m?.[1] || !m[2]) return { ok: false, reason: "invalid" };
+    return { ok: true, url: `https://github.com/${m[1]}/${m[2]}`, kind: "repo" };
+  }
+  return { ok: true, url: u.toString(), kind: "app" };
 }

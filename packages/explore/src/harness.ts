@@ -116,16 +116,36 @@ touch ${DONE}
   let done = false;
   let turns: number | undefined;
   const deadline = t0 + HARNESS_CAP_S * 1000;
+  // Every ~30 s, copy what the agent has written so far next to the run: the status page shows
+  // its notes, and its plan once it exists, while it is still working.
+  const copyOut = async () => {
+    for (const f of ["notes.md", "demo-plan.json"]) {
+      const c = await sbx.commands
+        .run(`cat ${OUT}/${f} 2>/dev/null || true`, { timeoutMs: 15_000 })
+        .catch(() => ({ stdout: "" }));
+      if (c.stdout.trim()) writeFileSync(join(opts.runDir, `harness-${f}`), c.stdout);
+    }
+  };
+  let polls = 0;
+  let misses = 0;
   while (Date.now() < deadline) {
     await new Promise((r) => setTimeout(r, 5000));
+    if (++polls % 6 === 0) await copyOut();
     const r = await sbx.commands
       .run(
         `test -f ${DONE} && echo done; cat /home/user/.agent-stderr.log 2>/dev/null | tail -n +${seen + 1}`,
-        {
-          timeoutMs: 15_000,
-        },
+        { timeoutMs: 15_000, requestTimeoutMs: 20_000 },
       )
-      .catch(() => ({ stdout: "" }));
+      .then((x) => ((misses = 0), x))
+      .catch(() => ((misses += 1), { stdout: "" }));
+    // A box that stops answering is out of memory or wedged; waiting out the cap gains nothing,
+    // and the recipe fallback cannot use it either.
+    if (misses >= 6) {
+      log(`harness: the sandbox stopped answering for ${misses * 20}s+ (likely out of memory)`);
+      note({ event: "unresponsive", polls, seconds: (Date.now() - t0) / 1000 });
+      await sbx.kill().catch(() => {});
+      return { ok: false, reason: "the sandbox stopped answering (likely out of memory)" };
+    }
     const lines = r.stdout.replace(/\n$/, "").split("\n");
     if (lines[0] === "done") {
       done = true;

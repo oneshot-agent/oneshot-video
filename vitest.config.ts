@@ -34,6 +34,10 @@ export default defineConfig({
       },
       { find: /^@oneshot-video\/record$/, replacement: src("./packages/record/src/index.ts") },
       { find: /^@oneshot-video\/narrate$/, replacement: src("./packages/narrate/src/index.ts") },
+      {
+        find: /^@oneshot-video\/pipeline\/status$/,
+        replacement: src("./packages/pipeline/src/status.ts"),
+      },
       { find: /^@oneshot-video\/pipeline$/, replacement: src("./packages/pipeline/src/index.ts") },
       { find: /^@oneshot-video\/explore$/, replacement: src("./packages/explore/src/index.ts") },
     ],
