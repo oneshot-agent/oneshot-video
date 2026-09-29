@@ -36,6 +36,7 @@ import {
   SPEND_2,
   SURFACE,
 } from "@oneshot-agent/video-baseline/tokens";
+import { type Focus, focusAt, solveCrop } from "./crop.ts";
 
 export const sec = (s: number, fps: number) => Math.round(s * fps);
 
@@ -54,7 +55,6 @@ export const fadeIn = (frame: number, delay: number, len = FADE_FRAMES) =>
     extrapolateRight: "clamp",
   });
 
-const easeOutCubic = (x: number) => 1 - Math.pow(1 - x, 3);
 void CAPTURE_EASING;
 
 /** Type lands with a settle, never a bounce. */
@@ -207,7 +207,10 @@ export const Terminal: React.FC<{ title: string; steps: Step[]; scale?: number }
       const shown = s.text.slice(0, Math.max(0, chars));
       const typing = chars < s.text.length;
       rendered.push(
-        <div key={i} style={{ display: "flex", gap: 14, marginTop: i === 0 ? 0 : 16 }}>
+        <div
+          key={`cmd-${s.at}-${s.text}`}
+          style={{ display: "flex", gap: 14, marginTop: i === 0 ? 0 : 16 }}
+        >
           <span style={{ color: ACCENT }}>$</span>
           <span style={{ color: CREAM }}>
             {shown}
@@ -220,7 +223,7 @@ export const Terminal: React.FC<{ title: string; steps: Step[]; scale?: number }
     } else {
       rendered.push(
         <div
-          key={i}
+          key={`out-${s.at}-${s.text}`}
           style={{
             color: s.color ?? MUTED,
             marginTop: 8,
@@ -266,12 +269,8 @@ export const Terminal: React.FC<{ title: string; steps: Step[]; scale?: number }
   );
 };
 
-export interface Focus {
-  from: [number, number, number];
-  to: [number, number, number];
-  moveStart: number;
-  moveEnd: number;
-}
+/** Focus type re-exported for callers that only import from primitives.tsx. */
+export type { Focus } from "./crop.ts";
 
 /**
  * Capture rig — the recording with a designed camera move. One move per scene, then it stops.
@@ -293,17 +292,14 @@ export const Capture: React.FC<{
   const height = viewH ?? vh;
   const t = frame / fps;
   const f: Focus = focus ?? { from: [0.5, 0.5, 1], to: [0.5, 0.5, 1], moveStart: 0, moveEnd: 1 };
-  const p = interpolate(t, [f.moveStart, f.moveEnd], [0, 1], {
-    extrapolateLeft: "clamp",
-    extrapolateRight: "clamp",
-    easing: easeOutCubic,
+  const focusBox = focusAt(f, t);
+  const { scale, left, top } = solveCrop({
+    srcW,
+    srcH,
+    viewW: width,
+    viewH: height,
+    focus: focusBox,
   });
-  const fx = interpolate(p, [0, 1], [f.from[0], f.to[0]]);
-  const fy = interpolate(p, [0, 1], [f.from[1], f.to[1]]);
-  const fw = interpolate(p, [0, 1], [f.from[2], f.to[2]]);
-  const scale = width / (srcW * fw);
-  const left = -(fx * srcW * scale) + width / 2;
-  const top = -(fy * srcH * scale) + height / 2;
   return (
     <AbsoluteFill style={{ backgroundColor: INK, overflow: "hidden" }}>
       <OffthreadVideo
@@ -445,8 +441,8 @@ export const WedgeCard: React.FC<{ setup: string[]; turn: string }> = ({ setup, 
   return (
     <AbsoluteFill style={{ justifyContent: "center", padding: "0 190px" }}>
       <div style={{ maxWidth: 1360 }}>
-        {setup.map((l, i) => (
-          <Line key={i} delay={sec(0.5, fps)} size={66} weight={450}>
+        {setup.map((l) => (
+          <Line key={l} delay={sec(0.5, fps)} size={66} weight={450}>
             {l}
           </Line>
         ))}
