@@ -5,6 +5,7 @@
  */
 import { mkdirSync } from "node:fs";
 import { join } from "node:path";
+import { dismissOverlays } from "./overlays.ts";
 
 export interface WorkflowStep {
   id: string;
@@ -185,11 +186,7 @@ export async function playwrightPage(): Promise<{
       await page.goto(url, { waitUntil: "domcontentloaded", timeout: first ? 90_000 : 45_000 });
       first = false;
       await page.waitForLoadState("networkidle", { timeout: 8000 }).catch(() => {});
-      // Whatever an app opens on load (a migration notice, a cookie banner, a what's-new
-      // dialog) sits over every still and blocks every click. Escape closes most of them and
-      // does nothing on a page without one.
-      await page.keyboard.press("Escape").catch(() => {});
-      await page.waitForTimeout(300);
+      await dismissOverlays(page);
     },
     click: async (selector) => {
       await page.locator(selector).first().click({ timeout: 5000 });

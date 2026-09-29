@@ -6,6 +6,7 @@ import { mkdirSync } from "node:fs";
 import { join } from "node:path";
 import { FPS, HEIGHT, WIDTH } from "@oneshot-agent/video-baseline";
 import type { PageShot } from "@oneshot-video/shared-types";
+import { dismissOverlays } from "./overlays.ts";
 
 const SKIP =
   /(logout|signout|sign-out|login|signin|sign-in|register|mailto:|tel:|\.(pdf|zip|png|jpg|svg)$|#)/i;
@@ -54,6 +55,7 @@ export async function shootPages(opts: PagesOptions): Promise<PagesResult> {
       .goto(url, { waitUntil: "networkidle", timeout: 45_000 })
       .catch(() => page.goto(url, { waitUntil: "domcontentloaded", timeout: 45_000 }));
     await page.waitForTimeout(opts.settleMs ?? 1800);
+    await dismissOverlays(page);
     observed.add(page.url());
     await snapshot();
     const png = join(opts.outDir, `page-${i}.png`);
