@@ -204,13 +204,17 @@ ${body}
 <script>${railScript}</script>${opts.script ? `<script>${opts.script}</script>` : ""}
 </body></html>`;
 
-export function formPage(opts: { error?: "invalid" | "local"; url?: string } = {}): string {
+export function formPage(
+  opts: { error?: "invalid" | "local" | "email"; url?: string; contact?: string } = {},
+): string {
   const warn =
     opts.error === "local"
       ? `<div class="panel bad">That URL is on your laptop, and this runs on ours. Open a tunnel and paste what it prints:<br><code>${TUNNEL_HINT}</code><br>A Vercel or Netlify preview URL works too.</div>`
       : opts.error === "invalid"
         ? `<div class="panel bad">That is not an http(s) URL.</div>`
-        : "";
+        : opts.error === "email"
+          ? `<div class="panel bad">Your email is required, so the film has somewhere to go.</div>`
+          : "";
   return shell(
     "OneShot video",
     `<section class="copy">
@@ -222,8 +226,8 @@ ${warn}
   <label for="url">app url or GitHub repo</label>
   <div class="field"><span class="prompt">$</span><input id="url" name="url" type="url" required placeholder="https://your.app or https://github.com/you/app" value="${esc(opts.url ?? "")}" autocomplete="off"></div>
   <p class="hint">A public GitHub repo is booted in a sandbox, seeded and filmed. An app URL must be public; localhost is not reachable from here: <code>${TUNNEL_HINT}</code>, or a preview deploy.</p>
-  <label for="contact">where to find you</label>
-  <div class="field"><input id="contact" name="contact" type="text" placeholder="email or discord handle"></div>
+  <label for="contact">your email</label>
+  <div class="field"><input id="contact" name="contact" type="email" required placeholder="you@company.com" value="${esc(opts.contact ?? "")}" autocomplete="email"></div>
   <label for="hint">one line on what to show <span style="text-transform:none;letter-spacing:0">(optional)</span></label>
   <div class="field"><input id="hint" name="hint" type="text" placeholder="the dashboard after login, the checkout, the thing that came back"></div>
   <div class="actions"><button class="primary-button" type="submit">Queue the film</button><a class="secondary-button" href="/r/launch">See a finished one →</a></div>

@@ -5,7 +5,15 @@
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { adminPage, formPage, liveFragment, statusPage } from "./html.ts";
-import { ROOT, enqueue, listSubmissions, readStatus, runDir, validateUrl } from "./queue.ts";
+import {
+  ROOT,
+  enqueue,
+  listSubmissions,
+  readStatus,
+  runDir,
+  validateEmail,
+  validateUrl,
+} from "./queue.ts";
 
 /** Where people reach this server. Every entry point hands back `${PUBLIC_URL}/r/<id>`. */
 export const publicUrl = () =>
@@ -27,12 +35,15 @@ export async function handle(req: Request): Promise<Response> {
   if (req.method === "POST" && p === "/submit") {
     const form = await req.formData();
     const raw = String(form.get("url") ?? "");
+    const rawContact = String(form.get("contact") ?? "");
     const v = validateUrl(raw);
-    if (!v.ok) return html(formPage({ error: v.reason, url: raw }), 422);
+    if (!v.ok) return html(formPage({ error: v.reason, url: raw, contact: rawContact }), 422);
+    const email = validateEmail(rawContact);
+    if (!email) return html(formPage({ error: "email", url: raw, contact: rawContact }), 422);
     const sub = enqueue({
       url: v.url,
       kind: v.kind,
-      contact: String(form.get("contact") ?? "").slice(0, 120),
+      contact: email,
       hint: String(form.get("hint") ?? "").slice(0, 200),
     });
     // Relative, so it stays on https behind the tunnel (Bun itself sees plain http).

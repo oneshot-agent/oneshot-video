@@ -84,3 +84,9 @@ export function validateUrl(
   }
   return { ok: true, url: u.toString(), kind: "app" };
 }
+
+/** One address, the usual shape: something@domain.tld, no spaces. The browser checks too. */
+export function validateEmail(raw: string): string | null {
+  const e = raw.trim();
+  return e.length <= 120 && /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(e) ? e : null;
+}

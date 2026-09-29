@@ -12,7 +12,7 @@ const { listSubmissions, readStatus, validateUrl } = await import("../src/queue.
 
 const post = (fields: Record<string, string>) => {
   const fd = new FormData();
-  for (const [k, v] of Object.entries(fields)) fd.set(k, v);
+  for (const [k, v] of Object.entries({ contact: "dev@example.com", ...fields })) fd.set(k, v);
   return handle(new Request("http://x/submit", { method: "POST", body: fd }));
 };
 
@@ -36,7 +36,7 @@ describe("intake", () => {
   it("queues a public URL and redirects to its status page", async () => {
     const r = await post({
       url: "https://oneshot-gtm.com",
-      contact: "@j",
+      contact: "j@example.com",
       hint: "the receipts page",
     });
     expect(r.status).toBe(303);
@@ -71,6 +71,20 @@ describe("intake", () => {
     const failed = await (await handle(new Request(`http://x${loc}`))).text();
     expect(failed).toMatch(/stage-failed/);
     expect(failed).toMatch(/It did not ship/);
+  });
+  it("requires an email and nothing else in the contact field", async () => {
+    const before = listSubmissions().length;
+    for (const contact of ["", "@j", "discord#1234", "not an email", "a@b"]) {
+      const r = await post({ url: "https://oneshot-gtm.com/email", contact });
+      expect(r.status).toBe(422);
+      expect(await r.text()).toMatch(/email is required/);
+    }
+    expect(listSubmissions()).toHaveLength(before);
+    const form = await (await handle(new Request("http://x/"))).text();
+    expect(form).toMatch(/type="email" required/);
+    const ok = await post({ url: "https://oneshot-gtm.com/email", contact: " buse@bluesense.ai " });
+    expect(ok.status).toBe(303);
+    expect(listSubmissions().at(-1)?.contact).toBe("buse@bluesense.ai");
   });
   it("validateUrl", () => {
     expect(validateUrl("ftp://x")).toEqual({ ok: false, reason: "invalid" });
