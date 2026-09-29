@@ -235,11 +235,13 @@ touch ${DONE}
     })
       .map(([k, v]) => `${k}=${JSON.stringify(v)}`)
       .join(" ");
-    await run(
-      `cd ${APP_DIR} && (setsid nohup sh -c ${JSON.stringify(`${envs} ${plan.boot.start}`)} > ${OUT}/app-restart.log 2>&1 &)`,
-      20_000,
-      false,
-    );
+    // background: an E2B command waits on a child it backgrounded itself, setsid or not.
+    await sbx.commands
+      .run(`cd ${APP_DIR} && ${envs} ${plan.boot.start} > ${OUT}/app-restart.log 2>&1`, {
+        background: true,
+        timeoutMs: 0,
+      })
+      .catch(() => {});
     let up = false;
     for (let i = 0; i < 30 && !up; i++) {
       await new Promise((r) => setTimeout(r, 2000));

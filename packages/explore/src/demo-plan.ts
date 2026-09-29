@@ -29,6 +29,15 @@ export interface DemoWorkflowStep {
   actions?: DemoAction[];
 }
 
+export interface DemoAuth {
+  /** Where the login form is. Must start with "/". */
+  path: string;
+  /** The fills and the submit click, in order. */
+  actions: DemoAction[];
+  /** Text visible once logged in; the check and the camera wait for it. */
+  expect?: string;
+}
+
 export interface DemoPlan {
   app: {
     name: string;
@@ -44,6 +53,11 @@ export interface DemoPlan {
     demo_mode: string | null;
     seeded: string[];
   };
+  /**
+   * Run once before the workflow, in the same browser session, and never filmed: the login that
+   * gets the camera past the wall. The session (cookies, localStorage) carries into every step.
+   */
+  auth?: DemoAuth;
   /** 3–6 steps, unless `blocked` is set, in which case it may be empty. */
   workflow: DemoWorkflowStep[];
   blocked: string | null;
@@ -220,6 +234,24 @@ export function validateDemoPlan(json: unknown): ValidateDemoPlanResult {
     }
     const seenIds = new Set<string>();
     workflow.forEach((step, i) => checkWorkflowStep(errors, `workflow[${i}]`, step, seenIds));
+  }
+
+  const auth = json["auth"];
+  if (auth !== undefined && auth !== null) {
+    if (!isRecord(auth)) {
+      errors.push("auth: must be an object");
+    } else {
+      const authPath = auth["path"];
+      if (typeof authPath !== "string" || !authPath.startsWith("/"))
+        errors.push("auth.path: must be a string starting with /");
+      const acts = auth["actions"];
+      if (!Array.isArray(acts) || acts.length === 0) {
+        errors.push("auth.actions: must be a non-empty array");
+      } else {
+        acts.forEach((a, i) => checkAction(errors, `auth.actions[${i}]`, a));
+      }
+      checkOptionalString(errors, "auth.expect", auth["expect"]);
+    }
   }
 
   const notes = json["notes"];

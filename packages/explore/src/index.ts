@@ -10,7 +10,7 @@ import type { Explored } from "@oneshot-video/shared-types";
 import { bootRepo, type BootResult } from "./boot.ts";
 import { runHarness, type HarnessResult } from "./harness.ts";
 import { shootPages } from "./pages.ts";
-import { runWorkflow, type WorkflowStep } from "./workflow.ts";
+import { runWorkflow, type WorkflowAuth, type WorkflowStep } from "./workflow.ts";
 
 export { bootRepo, readRepoFacts, E2B_TEMPLATE, BOOT_CAP_S } from "./boot.ts";
 export { recipeFor, parseSetupHint } from "./recipe.ts";
@@ -52,6 +52,7 @@ export async function explore(opts: ExploreOptions): Promise<Explored> {
   const want = opts.want ?? pathsFromHint(opts.setup_hint);
   let harness: Explored["harness"];
   let steps: WorkflowStep[] | undefined;
+  let auth: WorkflowAuth | undefined;
   if (opts.repo_url) {
     const bootOpts = {
       repo_url: opts.repo_url,
@@ -89,6 +90,12 @@ export async function explore(opts: ExploreOptions): Promise<Explored> {
         caption,
         actions: actions as WorkflowStep["actions"],
       }));
+      if (h.plan.auth)
+        auth = {
+          path: h.plan.auth.path,
+          actions: h.plan.auth.actions as WorkflowAuth["actions"],
+          expect: h.plan.auth.expect,
+        };
       stop = h.stop;
     } else {
       log(`harness: ${h.reason} → recipe boot${h.box ? " in the same sandbox" : ""}`);
@@ -112,7 +119,7 @@ export async function explore(opts: ExploreOptions): Promise<Explored> {
     // A harness plan is shot as a workflow (visit, click, fill, wait, scroll, still); anything
     // else walks the landing's links.
     const shots = steps
-      ? await runWorkflow({ base_url, steps, outDir, log }).then((w) => {
+      ? await runWorkflow({ base_url, steps, auth, outDir, log }).then((w) => {
           writeFileSync(
             join(opts.runDir, "workflow-actions.json"),
             JSON.stringify(w.actions, null, 2),

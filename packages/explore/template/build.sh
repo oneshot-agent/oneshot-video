@@ -16,7 +16,10 @@ src="$oneshot/apps/worker-service/agent_tier/run-agent.ts"
 
 build="$here/.build"
 rm -rf "$build" && mkdir -p "$build"
-cp "$here/e2b.Dockerfile" "$here/start.sh" "$here/setup-db.sh" "$build/"
+cp "$here/e2b.Dockerfile" "$here/start.sh" "$here/setup-db.sh" "$here/check-workflow.sh" "$build/"
+# The in-box camera: the repo's own validator and runWorkflow, bundled; Playwright stays external
+# (installed in the image at the same version).
+bun build "$here/check-workflow.ts" --target=bun --external playwright --outfile "$build/check-workflow.js" >/dev/null
 cp "$src" "$build/run-agent.ts"
 echo "run-agent.ts from $(git -C "$oneshot" rev-parse --short HEAD 2>/dev/null || echo '?') ($(wc -l < "$src") lines)"
 

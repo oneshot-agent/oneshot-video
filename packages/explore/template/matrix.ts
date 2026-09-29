@@ -1,7 +1,7 @@
 /**
  * The smoke matrix: the harness on a spread of public repos, to see where the box breaks before a
  * hacker's repo does. Each repo runs explore() (harness → workflow shots, or the recipe fallback)
- * in its own sandbox, in parallel; no script, narration or render, so it costs model turns only.
+ * in its own sandbox, two at a time (MATRIX_CONCURRENCY); no script, narration or render, so it costs model turns only.
  *
  *   bun --env-file=.env packages/explore/template/matrix.ts [owner/repo ...]
  *
@@ -37,43 +37,58 @@ const root = join(process.cwd(), "runs", `matrix-${Date.now().toString(36)}`);
 mkdirSync(root, { recursive: true });
 console.log(`matrix → ${root}`);
 
-const results = await Promise.all(
-  cases.map(async (c) => {
-    const runDir = join(root, c.repo.replace("/", "__"));
-    mkdirSync(runDir, { recursive: true });
-    const t0 = Date.now();
-    const log = (l: string) => {
-      if (!/^harness turn|^\$ /.test(l)) console.log(`[${c.repo}] ${l.slice(0, 160)}`);
+// Two at a time by default: each repo's camera is a Chromium on this machine, and four at once
+// starved the launches in the first matrix.
+const limit = Number(process.env["MATRIX_CONCURRENCY"] ?? 2);
+async function pool<T, R>(items: T[], n: number, fn: (x: T) => Promise<R>): Promise<R[]> {
+  const out: R[] = [];
+  let next = 0;
+  await Promise.all(
+    Array.from({ length: Math.min(n, items.length) }, async () => {
+      while (next < items.length) {
+        const i = next++;
+        out[i] = await fn(items[i] as T);
+      }
+    }),
+  );
+  return out;
+}
+
+const results = await pool(cases, limit, async (c) => {
+  const runDir = join(root, c.repo.replace("/", "__"));
+  mkdirSync(runDir, { recursive: true });
+  const t0 = Date.now();
+  const log = (l: string) => {
+    if (!/^harness turn|^\$ /.test(l)) console.log(`[${c.repo}] ${l.slice(0, 160)}`);
+  };
+  try {
+    const ex = await explore({
+      repo_url: `https://github.com/${c.repo}`,
+      hint: c.hint,
+      setup_hint: c.setup_hint,
+      runDir,
+      log,
+    });
+    return {
+      repo: c.repo,
+      ok: true,
+      mode: ex.boot?.mode ?? "?",
+      seconds: Math.round((Date.now() - t0) / 1000),
+      turns: ex.harness?.turns,
+      stills: ex.pages.length,
+      note: ex.boot?.harness_note ?? ex.harness?.seeded?.[0] ?? "",
     };
-    try {
-      const ex = await explore({
-        repo_url: `https://github.com/${c.repo}`,
-        hint: c.hint,
-        setup_hint: c.setup_hint,
-        runDir,
-        log,
-      });
-      return {
-        repo: c.repo,
-        ok: true,
-        mode: ex.boot?.mode ?? "?",
-        seconds: Math.round((Date.now() - t0) / 1000),
-        turns: ex.harness?.turns,
-        stills: ex.pages.length,
-        note: ex.boot?.harness_note ?? ex.harness?.seeded?.[0] ?? "",
-      };
-    } catch (e) {
-      return {
-        repo: c.repo,
-        ok: false,
-        mode: "-",
-        seconds: Math.round((Date.now() - t0) / 1000),
-        stills: 0,
-        note: (e instanceof Error ? e.message : String(e)).slice(0, 200),
-      };
-    }
-  }),
-);
+  } catch (e) {
+    return {
+      repo: c.repo,
+      ok: false,
+      mode: "-",
+      seconds: Math.round((Date.now() - t0) / 1000),
+      stills: 0,
+      note: (e instanceof Error ? e.message : String(e)).slice(0, 200),
+    };
+  }
+});
 
 const table = results
   .map(

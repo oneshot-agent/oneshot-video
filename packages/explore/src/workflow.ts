@@ -48,12 +48,23 @@ export interface RunWorkflowResult {
   pages: WorkflowPageResult[];
   observed: string[];
   actions: WorkflowActionResult[];
+  /** undefined when there was no auth step; false when it ran and `expect` never showed. */
+  authOk?: boolean;
+}
+
+/** A login run once before the steps, unfilmed; the session carries into every step. */
+export interface WorkflowAuth {
+  path: string;
+  actions: WorkflowAction[];
+  /** Text that appears once logged in. */
+  expect?: string;
 }
 
 export interface RunWorkflowOptions {
   base_url: string;
   steps: WorkflowStep[];
   outDir: string;
+  auth?: WorkflowAuth;
   page?: WorkflowPage;
   log?: (l: string) => void;
 }
@@ -79,7 +90,40 @@ export async function runWorkflow(opts: RunWorkflowOptions): Promise<RunWorkflow
   const actions: WorkflowActionResult[] = [];
   const observedSeen = new Set<string>();
   const observed: string[] = [];
+  let authOk: boolean | undefined;
+  const act = async (stepId: string, action: WorkflowAction) => {
+    try {
+      if (action.op === "click") await page.click(action.selector);
+      else if (action.op === "fill") await page.fill(action.selector, action.value);
+      else if (action.op === "wait") await page.wait(action.ms);
+      else if (action.op === "scroll") await page.scroll(action.px);
+      actions.push({ step: stepId, op: action.op, ok: true });
+    } catch (e) {
+      const error = errMessage(e);
+      log(`action failed ${stepId} ${action.op}: ${error}`);
+      actions.push({ step: stepId, op: action.op, ok: false, error });
+    }
+  };
   try {
+    if (opts.auth) {
+      const url = joinUrl(opts.base_url, opts.auth.path);
+      try {
+        await page.goto(url);
+        for (const action of opts.auth.actions) await act("auth", action);
+        authOk = true;
+        if (opts.auth.expect) {
+          authOk = false;
+          for (let t = 0; t < 20 && !authOk; t++) {
+            await page.wait(500);
+            authOk = (await page.visibleText()).includes(opts.auth.expect);
+          }
+        }
+        log(`auth ${authOk ? "ok" : `did not reach "${opts.auth.expect}"`}`);
+      } catch (e) {
+        authOk = false;
+        log(`auth failed ${url}: ${errMessage(e)}`);
+      }
+    }
     for (let i = 0; i < opts.steps.length; i++) {
       const step = opts.steps[i];
       if (!step) continue;
@@ -92,19 +136,7 @@ export async function runWorkflow(opts: RunWorkflowOptions): Promise<RunWorkflow
         actions.push({ step: step.id, op: "goto", ok: false, error });
         continue;
       }
-      for (const action of step.actions ?? []) {
-        try {
-          if (action.op === "click") await page.click(action.selector);
-          else if (action.op === "fill") await page.fill(action.selector, action.value);
-          else if (action.op === "wait") await page.wait(action.ms);
-          else if (action.op === "scroll") await page.scroll(action.px);
-          actions.push({ step: step.id, op: action.op, ok: true });
-        } catch (e) {
-          const error = errMessage(e);
-          log(`action failed ${step.id} ${action.op}: ${error}`);
-          actions.push({ step: step.id, op: action.op, ok: false, error });
-        }
-      }
+      for (const action of step.actions ?? []) await act(step.id, action);
       await page.wait(SETTLE_MS);
       const png = join(opts.outDir, `${String(i + 1).padStart(2, "0")}-${step.id}.png`);
       await page.screenshot(png);
@@ -127,7 +159,7 @@ export async function runWorkflow(opts: RunWorkflowOptions): Promise<RunWorkflow
   } finally {
     if (owned) await handle?.close();
   }
-  return { pages, observed, actions };
+  return { pages, observed, actions, ...(authOk !== undefined ? { authOk } : {}) };
 }
 
 /** Chromium at film size. Only this function may import Playwright. */
@@ -142,9 +174,14 @@ export async function playwrightPage(): Promise<{
     deviceScaleFactor: 1,
   });
   const page = await context.newPage();
+  let first = true;
   const workflowPage: WorkflowPage = {
+    // The first load of a dev server can take a minute (it compiles on request); after that, give
+    // a page up to 8 s to finish fetching its data before the still.
     goto: async (url) => {
-      await page.goto(url, { waitUntil: "domcontentloaded", timeout: 45_000 });
+      await page.goto(url, { waitUntil: "domcontentloaded", timeout: first ? 90_000 : 45_000 });
+      first = false;
+      await page.waitForLoadState("networkidle", { timeout: 8000 }).catch(() => {});
     },
     click: async (selector) => {
       await page.locator(selector).first().click({ timeout: 5000 });

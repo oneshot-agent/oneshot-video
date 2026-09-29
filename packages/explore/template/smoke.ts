@@ -35,6 +35,10 @@ const checks: [string, string][] = [
   ],
   ["run-agent.ts", "test -r /home/user/run-agent.ts && wc -l < /home/user/run-agent.ts"],
   ["sudo", "sudo -n true && echo ok"],
+  [
+    "check-workflow",
+    `printf '%s' '{"app":{"name":"s","what_it_does":"x"},"boot":{"install":"-","start":"-","port":4011,"env":{},"demo_mode":null,"seeded":[]},"workflow":[{"id":"a","path":"/","caption":"a","shows":"a"},{"id":"b","path":"/","caption":"b","shows":"b"},{"id":"c","path":"/","caption":"c","shows":"c"}],"blocked":null}' > /tmp/plan.json && check-workflow /tmp/plan.json | tail -1`,
+  ],
   ["whoami", "whoami"],
 ];
 
@@ -43,10 +47,15 @@ const sbx = await Sandbox.create(E2B_TEMPLATE, { timeoutMs: 5 * 60_000, envs: BO
 console.log(
   `sandbox ${sbx.sandboxId} from ${E2B_TEMPLATE} in ${((Date.now() - t0) / 1000).toFixed(1)}s`,
 );
+// A page for check-workflow to shoot. Started with background: true, since an E2B command waits
+// on a child it backgrounded itself, setsid or not.
+await sbx.files.write("/tmp/site/index.html", "<h1>Smoke</h1><p>three rows of data</p>");
+await sbx.commands.run("cd /tmp/site && python3 -m http.server 4011", { background: true });
+await new Promise((r) => setTimeout(r, 1000));
 let failed = 0;
 for (const [name, cmd] of checks) {
   const r = await sbx.commands
-    .run(cmd, { timeoutMs: 30_000 })
+    .run(cmd, { timeoutMs: 90_000 })
     .catch(
       (e: { result?: { exitCode: number; stdout: string; stderr: string } }) =>
         e.result ?? { exitCode: -1, stdout: "", stderr: String(e) },

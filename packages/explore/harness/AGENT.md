@@ -15,10 +15,11 @@ through corepack), `bun` / `bunx`, `python3` and `uv`, `build-essential`, `sqlit
 `task_complete` with a one-line `summary` and **no `tool_used`**.
 
 **You have 50 turns, and every tool call is one.** Spend them like this: about 10 reading, about
-15 installing, seeding and starting, then write the plan. Batch reads and checks into one `bash`
-call (`cat README.md package.json .env.example; ls app src/routes`), not one file per turn. The
-moment the app answers, write a first `demo-plan.json` (see the last section), then refine it with
-the turns left. A run that ends without that file has produced nothing.
+15 installing, seeding and starting, then write the plan, then spend what is left running
+`check-workflow` and fixing what it reports (see the last section). Batch reads and checks into one
+`bash` call (`cat README.md package.json .env.example; ls app src/routes`), not one file per turn.
+The moment the app answers, write a first `demo-plan.json`; a run that ends without that file has
+produced nothing.
 
 ## Read before running
 
@@ -58,6 +59,11 @@ what is missing, write the plan, and stop.
 package manager the lockfile names (`bun install`, `npm ci`, `pnpm install`, `yarn install`,
 `uv sync`). A big frontend build takes minutes: start it, then read the code while it runs.
 
+The camera loads every page over the internet. A production build (`build`, then `start` or
+`preview`) serves a page in a second; a dev server compiles on request and can take a minute per
+page, which the camera may not wait for. Use the production build when the repo has one and it
+finishes within a few minutes; fall back to the dev server when it does not.
+
 Processes started with `bash_bg` are killed when you finish. Start the **final** server detached,
 with the plain `bash` tool, so it outlives you:
 
@@ -78,11 +84,17 @@ what each path serves. Prefer pages with the data you seeded on them.
 
 Each step is a `path` plus optional `actions`, run in order after the page loads:
 `{ "op": "click", "selector": "…" }`, `{ "op": "fill", "selector": "…", "value": "…" }`,
-`{ "op": "wait", "ms": 1500 }`, `{ "op": "scroll", "px": 600 }`. A selector is CSS or Playwright
-text (`text=Create invoice`). Use only selectors you saw in the served HTML or the component
-source: an `id`, a `data-testid`, a `name`, or a button's exact text. If an action is doubtful,
-use a path that shows the same result instead; a still of the right page beats a click that
-misses.
+`{ "op": "wait", "ms": 1500 }`, `{ "op": "scroll", "px": 600 }`.
+
+Most apps render in the browser, so `curl` shows an empty shell: take selectors from the component
+source. Prefer, in this order: `role=button[name="Save"]` (the button's text),
+`role=textbox[name="Email"]` (the field's label), `role=link[name="Items"]`, `[data-testid=...]`,
+`#id`, `text=Exact text`. If an action stays doubtful, use a path that shows the same result: a
+still of the right page beats a click that misses.
+
+**Behind a login?** Do not film the login. Create a demo user (the app's seed, its signup API, or a
+row you insert) and add an `auth` block to the plan: the camera runs it once, unfilmed, before the
+first step, and keeps the session (cookies, localStorage) for every step after it.
 
 Each step gets a `caption`: one line, 12 words at most, stating a fact the viewer can see, in the
 voice of a developer. "Twelve invoices, three overdue." Not "Effortlessly manage your invoices."
@@ -95,6 +107,7 @@ Write `/home/user/output/demo-plan.json`, valid JSON, exactly this shape:
 {
   "app": { "name": "", "what_it_does": "", "wedge_hint": "", "proof_hint": "" },
   "boot": { "install": "", "start": "", "port": 3000, "env": {}, "demo_mode": null, "seeded": [] },
+  "auth": { "path": "/login", "actions": [], "expect": "text only visible once logged in" },
   "workflow": [{ "id": "landing", "path": "/", "caption": "", "shows": "", "actions": [] }],
   "blocked": null,
   "notes": []
@@ -108,7 +121,16 @@ Write `/home/user/output/demo-plan.json`, valid JSON, exactly this shape:
   set (never the submitter's values). `boot.demo_mode`: the flag or script you used, or null.
   `boot.seeded`: what you put in, e.g. `"12 invoices in data/demo.sqlite"`.
 - `workflow`: 3–6 steps, unique `id`s, every `path` starting with `/`.
+- `auth`: leave it out when the pages are public. Otherwise the login form's path, the fills and
+  the submit click, and `expect`, a piece of text that appears only once logged in.
 - `blocked`: null, or one sentence on what stopped you.
+
+**Then check it.** Run `check-workflow` with `bash_bg` (it takes 20–60 s) and read the result with
+`bash_check`. It runs your plan through the camera's own code in a real browser, against
+localhost, and prints for every step whether it loaded, which actions failed, and the first lines
+the page shows, flagging a blank page or a login wall. Fix what it reports (a selector, the
+`auth` block, a page with no data) and run it again, until it prints `all steps ok` or you are
+three turns from the end.
 
 Then call `task_complete`. If you are running out of turns, write what you have first: a partial
 plan with a running app beats a perfect plan with none.
