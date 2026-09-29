@@ -94,6 +94,8 @@ export interface PageShot {
   png: string;
   width: number;
   height: number;
+  /** The visible text on this still, when the camera recorded it (workflow shots do). */
+  text?: string[];
 }
 
 export interface Explored {

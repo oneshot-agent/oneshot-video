@@ -185,6 +185,7 @@ export async function explore(opts: ExploreOptions): Promise<Explored> {
               png: p.png,
               width: WIDTH,
               height: HEIGHT,
+              text: p.text,
             })),
           };
         })

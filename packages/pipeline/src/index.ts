@@ -540,6 +540,15 @@ export async function run(opts: RunOptions): Promise<RenderResult> {
       throw new Error(
         "shooting: the camera got no stills (every page failed to load); nothing to film",
       );
+    // Stills that all show the same screen (a welcome dialog, a login wall, a spinner) give the
+    // script nothing true to say, and it will say something anyway. Stop here instead.
+    const screens = new Set(
+      pages.filter((p) => p.text?.length).map((p) => (p.text ?? []).slice(0, 30).join("\n")),
+    );
+    if (pages.length >= 3 && screens.size === 1)
+      throw new Error(
+        `shooting: all ${pages.length} stills show the same screen ("${[...screens][0]?.split("\n")[0]?.slice(0, 60)}"): the workflow never got past it; nothing true to film`,
+      );
   }
   log.write({
     tool: "explore",
