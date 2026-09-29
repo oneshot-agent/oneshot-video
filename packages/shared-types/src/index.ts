@@ -102,10 +102,22 @@ export interface Explored {
   observed: string[];
   boot?: {
     backend: "e2b" | "none";
+    /** harness: the sandbox agent prepared the app; recipe: package.json scripts, read from outside. */
+    mode?: "harness" | "recipe";
     install?: string;
     start?: string;
     port?: number;
     seconds: number;
+    /** Why the harness was not used, when mode is "recipe". */
+    harness_note?: string;
+  };
+  /** What the harness agent learned about the app, when it prepared it. */
+  harness?: {
+    app: { name: string; what_it_does: string; wedge_hint?: string; proof_hint?: string };
+    workflow: { id: string; path: string; caption: string }[];
+    demo_mode?: string | null;
+    seeded?: string[];
+    turns?: number;
   };
 }
 

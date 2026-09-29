@@ -491,6 +491,7 @@ export async function run(opts: RunOptions): Promise<RenderResult> {
   let recording: Recording | undefined;
   let observed: string[] = [];
   let boot: Explored["boot"];
+  let harness: Explored["harness"];
   if (opts.video && opts.app_url && !opts.repo_url) {
     const { record } = await import("@oneshot-video/record");
     const rec = await record({ app_url: opts.app_url, outDir: join(dir, "recording") });
@@ -510,6 +511,7 @@ export async function run(opts: RunOptions): Promise<RenderResult> {
       ref: opts.ref,
       setup_hint: opts.setup_hint,
       env: opts.env,
+      hint: opts.hint,
       want: pathsFromHint(`${opts.hint ?? ""} ${opts.setup_hint ?? ""}`),
       runDir: dir,
       log: say,
@@ -518,13 +520,14 @@ export async function run(opts: RunOptions): Promise<RenderResult> {
     pages = ex.pages;
     observed = ex.observed;
     boot = ex.boot;
+    harness = ex.harness;
   }
   log.write({
     tool: "explore",
     event: "finish",
     success: true,
     duration_s: (Date.now() - t0) / 1000,
-    note: `${pages?.length ?? 0} pages${boot ? ` · ${boot.backend} boot ${boot.seconds.toFixed(1)}s` : ""}`,
+    note: `${pages?.length ?? 0} pages${boot ? ` · ${boot.backend} ${boot.mode ?? ""} boot ${boot.seconds.toFixed(1)}s` : ""}${boot?.harness_note ? ` · harness: ${boot.harness_note}` : ""}`,
   });
 
   // 2. script, from what the app says about itself plus what its pages show.
@@ -542,13 +545,27 @@ export async function run(opts: RunOptions): Promise<RenderResult> {
     .filter((l) => !/^https?:\/\//.test(l))
     .slice(0, 400)
     .join("\n");
+  // What the harness agent learned from the code comes before what the pages show.
+  const fromCode = harness
+    ? [
+        "## What the app is (read from its code by the sandbox agent)",
+        `${harness.app.name}: ${harness.app.what_it_does}`,
+        harness.app.wedge_hint ? `Wedge: ${harness.app.wedge_hint}` : "",
+        harness.app.proof_hint ? `Proof on screen: ${harness.app.proof_hint}` : "",
+        harness.seeded?.length ? `Demo data: ${harness.seeded.join("; ")}` : "",
+        "Workflow shot, in order:",
+        ...harness.workflow.map((w, i) => `${i + 1}. ${w.path} — ${w.caption}`),
+      ]
+        .filter(Boolean)
+        .join("\n")
+    : "";
   const withPages =
     (wr: typeof webRead): typeof webRead =>
     async (url) => {
       const r = await wr(url);
       return {
         ...r,
-        markdown: `${r.markdown}\n\n## What the app's pages show (captured)\n${pageText}${opts.hint ? `\n\n## The submitter asked to show\n${opts.hint}` : ""}`,
+        markdown: `${r.markdown}${fromCode ? `\n\n${fromCode}` : ""}\n\n## What the app's pages show (captured)\n${pageText}${opts.hint ? `\n\n## The submitter asked to show\n${opts.hint}` : ""}`,
       };
     };
   let scriptResult: { script: Script; cost_usd: number };
