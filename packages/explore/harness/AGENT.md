@@ -59,6 +59,11 @@ what is missing, write the plan, and stop.
 package manager the lockfile names (`bun install`, `npm ci`, `pnpm install`, `yarn install`,
 `uv sync`). A big frontend build takes minutes: start it, then read the code while it runs.
 
+**Waiting costs turns.** While an install or build runs, wait with one `bash` call such as
+`sleep 25; tail -5 /home/user/output/build.log` (bash allows 30 s), which is one turn per 25
+seconds. Never call `bash_check` back to back: each call is a turn and returns in a second, and ten
+of them waste a fifth of your budget on a single install.
+
 The camera loads every page over the internet. A production build (`build`, then `start` or
 `preview`) serves a page in a second; a dev server compiles on request and can take a minute per
 page, which the camera may not wait for. Use the production build when the repo has one and it
