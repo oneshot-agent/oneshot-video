@@ -85,9 +85,20 @@ export function planScenes(
   const sections: Section[] = [];
   const scenes: Scene[] = [];
   const n = script.sections.length;
-  script.sections.forEach((s, i) => {
-    const stem = byId.get(s.id);
-    if (!stem) throw new Error(`planScenes: no stem for section ${s.id}`);
+  script.sections.forEach((raw, i) => {
+    const stem = byId.get(raw.id);
+    if (!stem) throw new Error(`planScenes: no stem for section ${raw.id}`);
+    // The film's holds live in the cues, so the window and the stem stay reconcilable.
+    const hold = i === 0 ? WEDGE_TURN_HOLD_S : i === n - 1 ? CLOSE_HOLD_S : 0;
+    const s: Section = hold
+      ? {
+          ...raw,
+          delivery_cues: {
+            ...raw.delivery_cues,
+            pause_after_seconds: raw.delivery_cues.pause_after_seconds + hold,
+          },
+        }
+      : raw;
     const start = cursor;
     const end =
       start +

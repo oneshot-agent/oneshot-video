@@ -46,6 +46,14 @@ export const SHAPE_30S: readonly Beat[] = [
   },
 ] as const;
 
+/**
+ * The film's two holds, from the launch script's directions: the wedge lands its turn "after a
+ * full beat of silence", and the close "holds in silence after the narration ends".
+ */
+export const WEDGE_TURN_HOLD_S = 0.8;
+export const CLOSE_HOLD_S = 1.6;
+/** Cards carry the argument in few words; the captures carry the runtime. */
+export const CARD_WORDS_MAX = 10;
 export const ENDTAG_SECONDS = 1.2;
 export const ENDTAG_TEXT = "oneshot·video";
 
