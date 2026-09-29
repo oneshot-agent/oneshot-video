@@ -11,6 +11,7 @@
   },
   "files": [
     "src",
+    "bin",
     "assets",
     "fixtures",
     "README.md"

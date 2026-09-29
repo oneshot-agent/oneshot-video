@@ -18,6 +18,7 @@
   "type": "module",
   "scripts": {
     "cli": "bun run apps/cli/src/main.ts",
+    "gates": "bun run packages/baseline/bin/gates.ts",
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit",
