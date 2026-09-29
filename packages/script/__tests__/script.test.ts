@@ -14,6 +14,7 @@ describe("buildScript", () => {
   it("returns a script that passes the pre-recording gates", async () => {
     const { script, cost_usd } = await buildScript({
       app_url: "https://oneshot-gtm.com",
+      length_s: 60,
       webRead,
       llm: async () => fx("oneshot-gtm-launch.script.json"),
     });
@@ -23,12 +24,12 @@ describe("buildScript", () => {
   it("refuses a v1-shaped script and names the gates", async () => {
     await expect(
       buildScript({ app_url: "https://x", webRead, llm: async () => fx("v1-shaped.script.json") }),
-    ).rejects.toThrow(/voiceLint.*dontReadTheCommand.*silenceRespected/s);
+    ).rejects.toThrow(/after 3 attempts.*voiceLint.*dontReadTheCommand.*silenceRespected/s);
   });
   it("prompts carry the shape, the budget and the exemplar", () => {
     expect(systemPrompt()).toMatch(/thirty-second/);
     const u = userPrompt("https://x", "hello", 30);
-    expect(u).toMatch(/Word budget: 46 words/);
+    expect(u).toMatch(/Word budget: 58 words total, hard limit/);
     expect(u).toMatch(/wedge \(text_card/);
     expect(u).toMatch(/Most founders don't/);
   });

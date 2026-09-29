@@ -112,8 +112,12 @@ const COMMAND_RE = /\b(bunx|npx|npm|pnpm|yarn|bun run|bun install|curl|git clone
 export function dontReadTheCommand(script: Script): GateResult {
   const hits: string[] = [];
   for (const s of script.sections) {
-    for (const item of s.on_screen ?? [])
-      if (s.text.includes(item)) hits.push(`${s.id}: reads "${item}" aloud`);
+    // A text card's lines are meant to be spoken (the film says "Most founders don't." as it draws it).
+    // The rule is for commands and URLs the viewer can already see on a capture or terminal beat.
+    if ((s.kind ?? "capture") !== "text_card") {
+      for (const item of s.on_screen ?? [])
+        if (s.text.includes(item)) hits.push(`${s.id}: reads "${item}" aloud`);
+    }
     const m = s.text.match(COMMAND_RE);
     if (m) hits.push(`${s.id}: narration contains "${m[0]}"`);
   }

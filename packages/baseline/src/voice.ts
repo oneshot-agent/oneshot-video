@@ -26,8 +26,7 @@ export const NARRATION_LUFS = -18.4;
  */
 export const WORDS_PER_SECOND_MAX = 1.95;
 export const V3_LENGTH_FACTOR = 1.27;
-/** The share of runtime the film gives to silence. A word budget is length × pace × (1 − this). */
-export const SILENCE_SHARE = 0.2;
+/** The pace above is measured over the whole film, silences included, so the budget is simply length × pace. */
 
 /**
  * The film's own cues go as low as 0.3 s; the stated policy says 0.4 for full stops. The artifact
@@ -49,4 +48,4 @@ export const PROVIDER_NOTE =
 export const PACING_PROFILE = "technical";
 
 export const wordBudget = (lengthSeconds: number): number =>
-  Math.floor(lengthSeconds * WORDS_PER_SECOND_MAX * (1 - SILENCE_SHARE));
+  Math.floor(lengthSeconds * WORDS_PER_SECOND_MAX);

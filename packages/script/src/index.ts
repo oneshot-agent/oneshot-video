@@ -5,6 +5,7 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import {
+  CARD_WORDS_MAX,
   OPENING_SENTENCE,
   SHAPE_30S,
   TONE,
@@ -43,7 +44,7 @@ export function userPrompt(app_url: string, markdown: string, length_s: number):
   return [
     `App: ${app_url}`,
     `Length: ${length_s} s`,
-    `Word budget: ${wordBudget(length_s)} words total`,
+    `Word budget: ${wordBudget(length_s)} words total, hard limit. Each text card at most ${CARD_WORDS_MAX} words; the captures carry the words.`,
     `Tone: ${TONE}`,
     OPENING_SENTENCE,
     "",
@@ -73,10 +74,36 @@ export function parseScript(raw: string): Script {
   return obj as Script;
 }
 
-/** The three gates that can run before a recording or a stem exists. */
-export function gateScript(script: Script): void {
+const countWords = (t: string) => t.trim().split(/\s+/).filter(Boolean).length;
+
+/** Words are runtime. The budget is the film's pace over its whole length; cards get few words so the captures get the seconds. */
+export function wordsWithinBudget(
+  script: Script,
+  length_s: number,
+): { ok: boolean; reason: string; notes?: string[] } {
+  const budget = wordBudget(length_s);
+  const total = script.sections.reduce((n, s) => n + countWords(s.text), 0);
+  const notes: string[] = [];
+  if (total > budget) notes.push(`${total} words, budget ${budget}`);
+  for (const s of script.sections) {
+    if ((s.kind ?? "capture") === "text_card" && countWords(s.text) > CARD_WORDS_MAX) {
+      notes.push(`${s.id}: ${countWords(s.text)} words on a card, max ${CARD_WORDS_MAX}`);
+    }
+  }
+  return notes.length
+    ? { ok: false, reason: "over the word budget", notes }
+    : { ok: true, reason: `${total} words within ${budget}` };
+}
+
+/** The gates that can run before a recording or a stem exists. */
+export function gateScript(script: Script, length_s = 30): void {
   const results = {
-    voiceLint: voiceLint(script),
+    // At script time the timeline is a target, not a measurement; the measured check runs again after narration.
+    voiceLint: voiceLint({
+      ...script,
+      total_duration_seconds: Math.max(script.total_duration_seconds, length_s),
+    }),
+    wordsWithinBudget: wordsWithinBudget(script, length_s),
     dontReadTheCommand: dontReadTheCommand(script),
     silenceRespected: silenceRespected(script),
   };
@@ -91,7 +118,24 @@ export function gateScript(script: Script): void {
   }
 }
 
-/** One retry, with the gate's own words fed back. A second miss stops the run; the taste is not negotiable. */
+export const MAX_ATTEMPTS = 3;
+
+/** What to cut, section by section, in numbers the model can act on. */
+function cutList(script: Script, length_s: number): string {
+  const budget = wordBudget(length_s);
+  const total = script.sections.reduce((n, x) => n + countWords(x.text), 0);
+  const lines = script.sections.map((s) => {
+    const n = countWords(s.text);
+    const cap = (s.kind ?? "capture") === "text_card" ? CARD_WORDS_MAX : null;
+    return `- ${s.id}: ${n} words${cap && n > cap ? ` → at most ${cap}` : ""}`;
+  });
+  return [
+    `Total ${total} words; the budget is ${budget}${total > budget ? ` → cut ${total - budget}` : ""}.`,
+    ...lines,
+  ].join("\n");
+}
+
+/** Up to three attempts, each retry carrying the gate's own words and a per-section cut list. A third miss stops the run; the taste is not negotiable. */
 export async function buildScript(
   opts: BuildScriptOptions,
 ): Promise<{ script: Script; cost_usd: number; attempts: number }> {
@@ -99,25 +143,25 @@ export async function buildScript(
   const page = await opts.webRead(opts.app_url);
   const system = systemPrompt();
   const user = userPrompt(opts.app_url, page.markdown, length_s);
-  const first = await opts.llm(system, user);
-  const script = parseScript(first);
-  try {
-    gateScript(script);
-    return { script, cost_usd: page.cost_usd ?? 0, attempts: 1 };
-  } catch (e) {
-    const why = e instanceof Error ? e.message : String(e);
-    const budget = wordBudget(length_s);
-    const words = script.sections.reduce((n, x) => n + x.text.trim().split(/\s+/).length, 0);
-    const retry = [
-      user,
-      "",
-      "Your previous script did not pass:",
-      why,
-      `It has ${words} words; the budget is ${budget}. Cut lines rather than shortening every line. Keep the same sections and keys. Return the corrected JSON only.`,
-    ].join("\n");
-    const second = await opts.llm(system, retry);
-    const fixed = parseScript(second);
-    gateScript(fixed);
-    return { script: fixed, cost_usd: page.cost_usd ?? 0, attempts: 2 };
+  let prompt = user;
+  let lastError = "";
+  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+    const raw = await opts.llm(system, prompt);
+    const script = parseScript(raw);
+    try {
+      gateScript(script, length_s);
+      return { script, cost_usd: page.cost_usd ?? 0, attempts: attempt };
+    } catch (e) {
+      lastError = e instanceof Error ? e.message : String(e);
+      prompt = [
+        user,
+        "",
+        `Attempt ${attempt} did not pass:`,
+        lastError,
+        cutList(script, length_s),
+        "Cut whole clauses rather than shaving every line. Keep the same section ids, keys and kinds. Return the corrected JSON only.",
+      ].join("\n");
+    }
   }
+  throw new Error(`script failed taste gates after ${MAX_ATTEMPTS} attempts: ${lastError}`);
 }

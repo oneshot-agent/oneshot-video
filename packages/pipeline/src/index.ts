@@ -14,6 +14,8 @@ import {
 import { basename, dirname, join, resolve } from "node:path";
 import {
   BED_PATH,
+  CLOSE_HOLD_S,
+  WEDGE_TURN_HOLD_S,
   ENDTAG_SECONDS,
   TTS_REQUEST,
   runGates,

@@ -33,8 +33,14 @@ export type DemoVideoProps = {
 };
 
 /** Card copy: the section's own on_screen lines when the script wrote them, else the narration split at sentences. */
-const cardLines = (section: { text: string; on_screen?: string[] }): string[] => {
-  const own = (section.on_screen ?? []).map((l) => l.trim()).filter(Boolean);
+const cardLines = (
+  section: { text: string; on_screen?: string[] },
+  omit: string[] = [],
+): string[] => {
+  const bare = (l: string) => l.replace(/^https?:\/\//, "").replace(/\/$/, "");
+  const own = (section.on_screen ?? [])
+    .map((l) => l.trim())
+    .filter((l) => l && !omit.some((o) => o && bare(l) === o));
   return own.length ? own : section.text.split(/(?<=[.?!])\s+/).filter(Boolean);
 };
 const splitWedge = (section: {
@@ -101,8 +107,11 @@ export const DemoVideo: React.FC<DemoVideoProps> = ({
                 left={host}
                 right={tld}
                 lines={[
-                  cardLines(section ?? { text: target.hostname })[0] ?? target.hostname,
-                  cardLines(section ?? { text: "" })[1],
+                  cardLines(section ?? { text: target.hostname }, [
+                    target.hostname,
+                    target.url,
+                  ])[0] ?? target.hostname,
+                  cardLines(section ?? { text: "" }, [target.hostname, target.url])[1],
                 ]}
                 url={target.url}
               />
