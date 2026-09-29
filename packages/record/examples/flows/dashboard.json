@@ -1,0 +1,9 @@
+{
+  "steps": [
+    { "op": "goto", "url": "https://oneshotagent.com/dashboard" },
+    { "op": "wait", "ms": 2400 },
+    { "op": "click", "selector": "nav a[href*='/projects']" },
+    { "op": "wait", "ms": 2800 },
+    { "op": "scroll", "dy": 600 }
+  ]
+}
