@@ -60,7 +60,7 @@ video went wrong. The real launch script ships as a fixture and must pass every 
 ## Layout
 
 ```
-apps/cli           bun run cli -- <url> [--length 30] [--flow flow.json] [--silent-only] [--dry-run]
+apps/cli           bun run cli -- <url> [--length 30] [--flow flow.json] [--silent-only] [--url-check] [--out renders/] [--dry-run]
 apps/mcp           @oneshot-video/mcp — demoVideo MCP tool: definition, handle(), serve()
 packages/baseline  @oneshot-agent/video-baseline — the taste
 packages/film      @oneshot-agent/video-film — the Remotion composition

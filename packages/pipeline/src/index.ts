@@ -190,6 +190,7 @@ export interface RunOptions {
   /** One line from the submitter on what to show. Reaches the script prompt and the page picker. */
   hint?: string;
   eventsPath?: string;
+  outDir?: string;
 }
 
 export interface DryRunPlan {
