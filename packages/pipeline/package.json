@@ -9,6 +9,7 @@
   },
   "dependencies": {
     "@oneshot-agent/video-baseline": "workspace:*",
+    "@oneshot-video/explore": "workspace:*",
     "@oneshot-video/narrate": "workspace:*",
     "@oneshot-video/record": "workspace:*",
     "@oneshot-video/script": "workspace:*",

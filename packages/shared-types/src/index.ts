@@ -81,6 +81,32 @@ export interface Scene {
   caption?: string;
   /** Where in the continuous recording this scene's footage starts. The film is not continuous; the recording is. */
   recording_offset_s?: number;
+  /** A still of one page, served by the film's staticFile(). When set, the beat is cut from the still with a camera move, not from video. */
+  still?: string;
+  still_width?: number;
+  still_height?: number;
+}
+
+export interface PageShot {
+  url: string;
+  path: string;
+  title: string;
+  png: string;
+  width: number;
+  height: number;
+}
+
+export interface Explored {
+  base_url: string;
+  pages: PageShot[];
+  observed: string[];
+  boot?: {
+    backend: "e2b" | "unikraft" | "none";
+    install?: string;
+    start?: string;
+    port?: number;
+    seconds: number;
+  };
 }
 
 export interface ScenePlan {
