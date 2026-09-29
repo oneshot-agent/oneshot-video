@@ -265,7 +265,7 @@ export async function factCheck(llm: Llm, script: Script, images: string[]): Pro
     "You check a short product film's script against its footage. You are strict and literal. Reply with JSON only.",
     [
       "The attached images are the film's stills. Below are the lines the film says and shows.",
-      "List every line that states something the stills do not support: a number attached to the wrong thing, a count, total or range that is not shown, a name or title that is not visible, or a conclusion the screen does not show. A line that describes the product's purpose or tone without a factual claim is fine. Paraphrase of what is visible is fine.",
+      "List every line that states something the stills do not support: a number attached to the wrong thing, a count, total or range that is not shown, a name or title that is not visible, or a conclusion the screen does not show. A line that describes the product's purpose or tone without a factual claim is fine. Paraphrase of what is visible is fine. Formatting is never a problem: thousands separators (1,995 is 1995), capitalisation, rounding, spelled-out numbers. Only flag a claim that is wrong or not shown.",
       'Reply as {"problems": [{"line": "<the line>", "why": "<what the stills actually show>"}]}; an empty list when every line holds.',
       "",
       ...lines,
