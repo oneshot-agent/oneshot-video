@@ -33,6 +33,14 @@
         "@oneshot-video/shared-types": "workspace:*",
       },
     },
+    "apps/mcp": {
+      "name": "@oneshot-video/mcp",
+      "version": "0.1.0",
+      "dependencies": {
+        "@oneshot-video/pipeline": "workspace:*",
+        "@oneshot-video/shared-types": "workspace:*",
+      },
+    },
     "packages/baseline": {
       "name": "@oneshot-agent/video-baseline",
       "version": "0.1.0",
@@ -268,6 +276,8 @@
     "@oneshot-video/explore": ["@oneshot-video/explore@workspace:packages/explore"],
 
     "@oneshot-video/intake": ["@oneshot-video/intake@workspace:apps/intake"],
+
+    "@oneshot-video/mcp": ["@oneshot-video/mcp@workspace:apps/mcp"],
 
     "@oneshot-video/narrate": ["@oneshot-video/narrate@workspace:packages/narrate"],
 
