@@ -128,11 +128,10 @@ export function gate(ctx: Parameters<typeof runGates>[0]): GateReport {
   return report;
 }
 
-/** The full run is wired once the stages have real clients. Today it plans, and stops. */
-export async function run(opts: RunOptions): Promise<DryRunPlan> {
-  const plan = describePlan(opts);
-  if (opts.dryRun) return plan;
+/** The full run: script → record → narrate → plan → gates → render. Wired stage by stage on Hack Day. */
+export async function run(opts: RunOptions): Promise<RenderResult> {
+  void describePlan(opts);
   throw new Error(
-    "run(): stages script/record/narrate/render need ELEVENLABS_API_KEY, OPENROUTER_API_KEY, ONESHOT_PRIVATE_KEY and are wired on Hack Day. Use --dry-run.",
+    "run(): the stages are not wired yet. ELEVENLABS_API_KEY, OPENROUTER_API_KEY and AGENT_PRIVATE_KEY must be set; use --dry-run to see the plan.",
   );
 }
