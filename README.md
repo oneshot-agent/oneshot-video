@@ -61,7 +61,7 @@ video went wrong. The real launch script ships as a fixture and must pass every 
 
 ```
 apps/cli           bun run cli -- <url> [--length 30] [--flow flow.json] [--silent-only] [--dry-run]
-apps/mcp           stretch: demoVideo as an x402-payable MCP tool (README only)
+apps/mcp           @oneshot-video/mcp — demoVideo MCP tool: definition, handle(), serve()
 packages/baseline  @oneshot-agent/video-baseline — the taste
 packages/film      @oneshot-agent/video-film — the Remotion composition
 packages/script    webRead → OpenRouter → script.json, gated
