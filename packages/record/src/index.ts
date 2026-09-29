@@ -18,16 +18,29 @@ export interface Flow {
   steps: FlowStep[];
 }
 
-/** Land, let it settle, scroll once, press the first primary call to action. */
+/**
+ * Land, let it settle, read down the page in three moves, open the first real link, settle
+ * again. About 22 s of footage: three six-second beats plus slack for the cut.
+ */
 export function defaultFlow(url: string): Flow {
   return {
     steps: [
       { op: "goto", url },
-      { op: "wait", ms: 1800 },
-      { op: "scroll", dy: 600 },
-      { op: "wait", ms: 1200 },
-      { op: "click", selector: "a[href]:not([href^='#']) >> nth=0" },
+      { op: "wait", ms: 2600 },
+      { op: "scroll", dy: 520 },
       { op: "wait", ms: 2400 },
+      { op: "scroll", dy: 640 },
+      { op: "wait", ms: 2400 },
+      { op: "scroll", dy: 760 },
+      { op: "wait", ms: 2200 },
+      {
+        op: "click",
+        selector:
+          "main a[href^='/']:not([href='/']), nav a[href^='/']:not([href='/']), a[href^='/']:not([href='/']) >> nth=0",
+      },
+      { op: "wait", ms: 3200 },
+      { op: "scroll", dy: 480 },
+      { op: "wait", ms: 2600 },
     ],
   };
 }
