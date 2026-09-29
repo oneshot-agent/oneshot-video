@@ -68,8 +68,15 @@ export function parseScript(raw: string): Script {
   if (typeof obj.total_duration_seconds !== "number")
     throw new Error("script: no total_duration_seconds");
   for (const s of obj.sections) {
-    if (!s.id || typeof s.text !== "string" || !s.delivery_cues)
-      throw new Error(`script: malformed section ${JSON.stringify(s).slice(0, 80)}`);
+    const missing = [
+      !s.id && "id",
+      typeof s.text !== "string" && "text",
+      !s.delivery_cues && "delivery_cues",
+    ].filter(Boolean);
+    if (missing.length)
+      throw new Error(
+        `script: section ${String(s.id ?? "?")} is missing ${missing.join(", ")}; every section keeps id, text, delivery_cues`,
+      );
   }
   return obj as Script;
 }
@@ -147,8 +154,9 @@ export async function buildScript(
   let lastError = "";
   for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
     const raw = await opts.llm(system, prompt);
-    const script = parseScript(raw);
+    let script: Script | undefined;
     try {
+      script = parseScript(raw);
       gateScript(script, length_s);
       return { script, cost_usd: page.cost_usd ?? 0, attempts: attempt };
     } catch (e) {
@@ -158,7 +166,7 @@ export async function buildScript(
         "",
         `Attempt ${attempt} did not pass:`,
         lastError,
-        cutList(script, length_s),
+        script ? cutList(script, length_s) : "",
         "Cut whole clauses rather than shaving every line. Keep the same section ids, keys and kinds. Return the corrected JSON only.",
       ].join("\n");
     }
