@@ -131,6 +131,7 @@ touch ${DONE}
   let polls = 0;
   let misses = 0;
   let resumed = false;
+  let secondShift = false;
   while (Date.now() < deadline) {
     await new Promise((r) => setTimeout(r, 5000));
     if (++polls % 6 === 0) await copyOut();
@@ -169,19 +170,46 @@ touch ${DONE}
     }
     // An agent that crashed (a stalled model call, a 5xx) with turns and time left is resumed
     // once: run-agent.ts checkpoints to output/agent-state.json and picks up where it stopped.
-    if (done && !resumed && deadline - Date.now() > 90_000) {
+    if (done && (!resumed || !secondShift) && deadline - Date.now() > 90_000) {
       const check = await run(
         `cat /home/user/.agent-exit-code; test -s ${OUT}/demo-plan.json && echo plan`,
         10_000,
         false,
       );
       const [code, plan] = check.stdout.trim().split("\n");
-      if (code !== "0" && plan !== "plan") {
+      // run-agent.ts stops at 50 turns, and resuming does not grant more. An agent that used them
+      // all without writing a plan hands over to a second one: fresh turns, a continuation task,
+      // the first one's notes and clone. It exists to finish, not to explore again.
+      if (code === "0" && plan !== "plan" && !secondShift && deadline - Date.now() > 150_000) {
+        secondShift = true;
+        done = false;
+        log(
+          `harness: the agent used its ${turns ?? 50} turns without a plan; a second agent finishes`,
+        );
+        note({ event: "second-shift", turns });
+        await sbx.files.write(
+          "/home/user/task.json",
+          JSON.stringify(
+            {
+              ...task,
+              objective: `Finish preparing ${task.params.repo_url} for its launch film. Another agent ran out of turns before writing /home/user/output/demo-plan.json. Its notes are in /home/user/output/notes.md and its clone is in /home/user/app: read the notes first and do not repeat its exploration. Get the app running (it may already be), write demo-plan.json, run check-workflow, fix what it reports. The film should show: ${task.params.hint ?? "what the app is for"}.`,
+            },
+            null,
+            2,
+          ),
+        );
+        await run(`rm -f ${DONE} ${OUT}/agent-state.json`, 10_000, false);
+        seen = 0; // the wrapper truncates the stderr log
+        await launch();
+        continue;
+      }
+      if (code !== "0" && plan !== "plan" && !resumed) {
         resumed = true;
         done = false;
         log(`harness: the agent crashed on turn ${turns ?? "?"} (exit ${code}); resuming it once`);
         note({ event: "resume", turns, exit: code });
         await run(`rm -f ${DONE}`, 10_000, false);
+        seen = 0; // the wrapper truncates the stderr log
         await launch();
         continue;
       }
