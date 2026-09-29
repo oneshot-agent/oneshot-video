@@ -146,6 +146,6 @@ renders/
 stems/
 events.jsonl
 .env
-runs/
-intake/
+/runs/
+/intake/
 packages/film/public/runs/

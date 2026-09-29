@@ -1,0 +1,13 @@
+{
+  "name": "@oneshot-video/intake",
+  "version": "0.1.0",
+  "private": true,
+  "description": "The URL teams submit to. A form, a queue, a status page per run.",
+  "type": "module",
+  "main": "./src/server.ts",
+  "dependencies": {
+    "@oneshot-agent/video-baseline": "workspace:*",
+    "@oneshot-video/pipeline": "workspace:*",
+    "@oneshot-video/shared-types": "workspace:*"
+  }
+}
