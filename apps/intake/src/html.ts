@@ -226,7 +226,7 @@ ${warn}
   <div class="field"><input id="contact" name="contact" type="text" placeholder="email or discord handle"></div>
   <label for="hint">one line on what to show <span style="text-transform:none;letter-spacing:0">(optional)</span></label>
   <div class="field"><input id="hint" name="hint" type="text" placeholder="the dashboard after login, the checkout, the thing that came back"></div>
-  <div class="actions"><button class="primary-button" type="submit">Queue the film</button><a class="secondary-button" href="/r/mun147fa-dqsx">See a finished one →</a></div>
+  <div class="actions"><button class="primary-button" type="submit">Queue the film</button><a class="secondary-button" href="/r/launch">See a finished one →</a></div>
 </form>
 </section>`,
     { restAt: 0 },
@@ -345,7 +345,7 @@ ${st.gates?.length ? `<table><tr><th>gate</th><th>result</th></tr>${st.gates.map
     `<section class="copy">
 <p class="hero-context">${esc(host)}</p>
 <h1>${headline}</h1>
-<p class="deck">${live ? "Keep this page open; it follows the run as it goes. A repo takes a few minutes before the camera starts." : done ? "Thirty seconds, voiced and silent, both below." : "The run stopped and said why. Fix the URL or the page, and queue it again."}</p>
+<p class="deck">${live ? "Keep this page open; it follows the run as it goes. A repo takes a few minutes before the camera starts." : done ? "The voiced cut and the silent one, both below." : "The run stopped and said why. Fix the URL or the page, and queue it again."}</p>
 </section>
 <div class="stages">${rows}</div>
 ${card}
