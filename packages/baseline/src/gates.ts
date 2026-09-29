@@ -31,6 +31,12 @@ const fail = (reason: string, notes?: string[]): GateResult =>
 const words = (s: string): string[] => s.trim().split(/\s+/).filter(Boolean);
 const window = (s: Section): number => s.end_seconds - s.start_seconds;
 const nearHalf = (x: number): boolean => Math.abs(x * 2 - Math.round(x * 2)) < 1e-6;
+const sceneDur = (s: Scene): number => s.end_seconds - s.start_seconds;
+const skipped = (what: string): GateResult => ({
+  ok: true,
+  reason: `skipped: no ${what} supplied`,
+  notes: ["skipped"],
+});
 
 /** Timeline tolerance, seconds. Stems are measured with ffprobe; anything looser is an estimate. */
 export const TIMELINE_TOLERANCE_S = 0.08;
@@ -200,12 +206,11 @@ export function oneMotionVocabulary(
 /** d-001: "Only real pixels carry that." Text cards open and close; the middle is captured. */
 export function realPixels(scenes: Scene[]): GateResult {
   if (!scenes.length) return fail("no scenes");
-  const dur = (s: Scene) => s.end_seconds - s.start_seconds;
   // The end tag is appended after the piece; it is neither argument nor pixels.
-  const total = scenes.filter((s) => s.kind !== "endtag").reduce((a, s) => a + dur(s), 0);
+  const total = scenes.filter((s) => s.kind !== "endtag").reduce((a, s) => a + sceneDur(s), 0);
   const pixels = scenes
     .filter((s) => s.kind === "capture" || s.kind === "terminal")
-    .reduce((a, s) => a + dur(s), 0);
+    .reduce((a, s) => a + sceneDur(s), 0);
   const ratio = total ? pixels / total : 0;
   const problems: string[] = [];
   if (ratio < REAL_PIXELS_MIN)
@@ -278,11 +283,6 @@ export interface GateReport {
 
 /** Run every gate the context can feed. Gates without input are skipped, not passed silently. */
 export function runGates(ctx: GateContext): GateReport {
-  const skipped = (what: string): GateResult => ({
-    ok: true,
-    reason: `skipped: no ${what} supplied`,
-    notes: ["skipped"],
-  });
   const results: Record<GateName, GateResult> = {
     measuredTimeline: measuredTimeline(ctx.script, ctx.stems),
     noTaughtErrors: noTaughtErrors(ctx.script, ctx.observed),
