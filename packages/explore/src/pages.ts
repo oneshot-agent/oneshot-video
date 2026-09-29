@@ -56,6 +56,10 @@ export async function shootPages(opts: PagesOptions): Promise<PagesResult> {
       .catch(() => page.goto(url, { waitUntil: "domcontentloaded", timeout: 45_000 }));
     await page.waitForTimeout(opts.settleMs ?? 1800);
     await dismissOverlays(page);
+    // Some sites open their popup on a delay, after the first sweep; look again just before the
+    // still.
+    await page.waitForTimeout(1500);
+    await dismissOverlays(page);
     observed.add(page.url());
     await snapshot();
     const png = join(opts.outDir, `page-${i}.png`);
