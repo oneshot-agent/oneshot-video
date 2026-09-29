@@ -12,10 +12,10 @@ describe("cli", () => {
     });
     expect(() => parseArgs(["--nope"])).toThrow(/unknown argument/);
   });
-  it("dry run prints six stages and touches nothing", () => {
+  it("dry run prints seven stages and touches nothing", () => {
     const out = renderPlan(parseArgs(["https://oneshotagent.com", "--dry-run"]));
-    expect(out).toMatch(/1\. script/);
-    expect(out).toMatch(/6\. render/);
+    expect(out).toMatch(/1\. boot/);
+    expect(out).toMatch(/7\. render/);
     expect(out).toMatch(/Sarah/);
     expect(out).toMatch(/nothing was recorded/);
   });

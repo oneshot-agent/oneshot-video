@@ -1,7 +1,7 @@
 /**
  * explore: from a repo or a URL to a set of page stills and the text on them.
- * A repo is booted in a sandbox first (Unikraft Cloud, else OneShot's E2B template) and torn down
- * after the shots; a URL is shot as it is. Either way the film is cut from stills.
+ * A repo is booted in OneShot's E2B sandbox first and torn down after the shots; a URL is shot as
+ * it is. Either way the film is cut from stills.
  */
 import { writeFileSync } from "node:fs";
 import { join } from "node:path";

@@ -6,6 +6,7 @@
 import React from "react";
 import {
   AbsoluteFill,
+  Img,
   OffthreadVideo,
   interpolate,
   spring,
@@ -479,6 +480,107 @@ export const SilentLabels: React.FC<{ items: string[] }> = ({ items }) => {
             {it}
           </div>
         ))}
+      </div>
+    </AbsoluteFill>
+  );
+};
+
+/**
+ * Still capture — the launch film's own way of cutting a beat: a real UI still inside the drawn
+ * frame, one camera move, then it stops. Same crop maths as the video rig, over an image.
+ */
+export const StillCapture: React.FC<{
+  src: string;
+  srcW: number;
+  srcH: number;
+  focus?: Focus;
+  viewW?: number;
+  viewH?: number;
+}> = ({ src, srcW, srcH, focus, viewW, viewH }) => {
+  const frame = useCurrentFrame();
+  const { fps, width: vw, height: vh } = useVideoConfig();
+  const width = viewW ?? vw;
+  const height = viewH ?? vh;
+  const t = frame / fps;
+  const f: Focus = focus ?? { from: [0.5, 0.5, 1], to: [0.5, 0.5, 1], moveStart: 0, moveEnd: 1 };
+  const p = interpolate(t, [f.moveStart, f.moveEnd], [0, 1], {
+    extrapolateLeft: "clamp",
+    extrapolateRight: "clamp",
+    easing: (x) => 1 - Math.pow(1 - x, 3),
+  });
+  const fx = interpolate(p, [0, 1], [f.from[0], f.to[0]]);
+  const fy = interpolate(p, [0, 1], [f.from[1], f.to[1]]);
+  const fw = interpolate(p, [0, 1], [f.from[2], f.to[2]]);
+  const scale = width / (srcW * fw);
+  const left = -(fx * srcW * scale) + width / 2;
+  const top = -(fy * srcH * scale) + height / 2;
+  return (
+    <AbsoluteFill style={{ backgroundColor: INK, overflow: "hidden" }}>
+      <Img
+        src={src}
+        style={{ position: "absolute", width: srcW * scale, height: srcH * scale, left, top }}
+      />
+      <AbsoluteFill
+        style={{
+          opacity: fadeIn(frame, 0, 8),
+          boxShadow: "inset 0 0 260px rgba(0,0,0,0.55)",
+          pointerEvents: "none",
+        }}
+      />
+    </AbsoluteFill>
+  );
+};
+
+/** The framed variant of the still, with the mono caption rail beneath. */
+export const FramedStill: React.FC<{
+  src: string;
+  srcW: number;
+  srcH: number;
+  focus?: Focus;
+  caption: string;
+}> = ({ src, srcW, srcH, focus, caption }) => {
+  const frame = useCurrentFrame();
+  const { fps } = useVideoConfig();
+  const inn = settle(frame, 0, fps);
+  const FX = 150,
+    FY = 152,
+    FW = 1620,
+    FH = 796;
+  return (
+    <AbsoluteFill style={{ justifyContent: "center", alignItems: "center" }}>
+      <div
+        style={{
+          position: "absolute",
+          left: FX,
+          top: FY,
+          width: FW,
+          height: FH,
+          borderRadius: 12,
+          border: `1px solid ${RULE}`,
+          background: INK_DEEP,
+          overflow: "hidden",
+          transform: `scale(${interpolate(inn, [0, 1], [0.965, 1])})`,
+          opacity: fadeIn(frame, 0, 8),
+          boxShadow: "0 40px 90px rgba(0,0,0,0.55)",
+        }}
+      >
+        <StillCapture src={src} srcW={srcW} srcH={srcH} focus={focus} viewW={FW} viewH={FH} />
+      </div>
+      <div
+        style={{
+          position: "absolute",
+          left: FX,
+          top: FY + FH + 34,
+          display: "flex",
+          alignItems: "center",
+          gap: 18,
+          opacity: fadeIn(frame, 10, 12),
+        }}
+      >
+        <div style={{ width: 34, height: 2, background: SPEND }} />
+        <span style={{ fontFamily: MONO, fontSize: 26, color: CREAM_2, letterSpacing: "0.12em" }}>
+          {caption.toUpperCase()}
+        </span>
       </div>
     </AbsoluteFill>
   );

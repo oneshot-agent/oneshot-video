@@ -1,11 +1,8 @@
 /**
- * Boot a repo somewhere that is not this laptop and hand back a public URL. Unikraft Cloud when a
- * token is present (hardware isolation, ms cold starts, scale-to-zero); OneShot's own E2B compute
- * template otherwise. The camera stays outside the box either way: the recorder only needs a URL.
+ * Boot a repo somewhere that is not this laptop and hand back a public URL: OneShot's own E2B
+ * compute template. The camera stays outside the box: the recorder only needs a URL.
  */
 import { spawnSync } from "node:child_process";
-import { mkdirSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
 import { recipeFor, type Recipe, type RepoFacts } from "./recipe.ts";
 
 export const E2B_TEMPLATE = "3q9bmjreg9m3aggg9x3q"; // one-shot/apps/worker-service/agent_tier/e2b.toml
@@ -44,7 +41,7 @@ export interface BootOptions {
 
 export interface Booted {
   url: string;
-  backend: "e2b" | "unikraft";
+  backend: "e2b";
   recipe: Recipe;
   port: number;
   seconds: number;
@@ -199,122 +196,9 @@ async function bootE2B(opts: BootOptions, recipe: Recipe): Promise<Booted> {
   };
 }
 
-/**
- * Unikraft Cloud: build an image from a generated Dockerfile and run it as an instance. Needs
- * UKC_TOKEN. The recipe becomes the Dockerfile; the instance's FQDN is the URL.
- */
-async function bootUnikraft(opts: BootOptions, recipe: Recipe): Promise<Booted> {
-  const log = opts.log ?? (() => {});
-  const t0 = Date.now();
-  const { owner, name } = ghRepo(opts.repo_url);
-  const work = join(opts.runDir, "unikraft");
-  mkdirSync(work, { recursive: true });
-  const clone = spawnSync(
-    "git",
-    [
-      "clone",
-      "--depth",
-      "1",
-      ...(opts.ref ? ["--branch", opts.ref] : []),
-      `https://github.com/${owner}/${name}.git`,
-      join(work, "app"),
-    ],
-    { encoding: "utf8" },
-  );
-  if (clone.status !== 0) throw new Error(`git clone: ${clone.stderr.slice(-300)}`);
-  const port = recipe.ports[0] ?? 3000;
-  const envLines = Object.entries(opts.env ?? {})
-    .map(([k, v]) => `ENV ${k}=${JSON.stringify(v)}`)
-    .join("\n");
-  writeFileSync(
-    join(work, "app", "Dockerfile.oneshot-video"),
-    `FROM oven/bun:1
-WORKDIR /app
-COPY . .
-RUN ${recipe.install}
-ENV PORT=${port} HOST=0.0.0.0 HOSTNAME=0.0.0.0
-${envLines}
-EXPOSE ${port}
-CMD ${JSON.stringify(recipe.start.split(" "))}
-`,
-  );
-  const image = `oneshot-video/${name.toLowerCase()}:${Date.now().toString(36)}`;
-  const metro = process.env["UKC_METRO"] ?? "fra";
-  const build = spawnSync(
-    "unikraft",
-    ["build", join(work, "app"), "--dockerfile", "Dockerfile.oneshot-video", "--output", image],
-    { encoding: "utf8", cwd: join(work, "app") },
-  );
-  log(
-    `unikraft build → ${(build.stdout + build.stderr).trim().split("\n").slice(-2).join(" | ").slice(0, 200)}`,
-  );
-  if (build.status !== 0)
-    throw new Error(`unikraft build failed: ${(build.stderr || build.stdout).slice(-400)}`);
-  const runR = spawnSync(
-    "unikraft",
-    [
-      "run",
-      "--metro",
-      metro,
-      "-m",
-      "1024M",
-      "-p",
-      `443:${port}/tls+http`,
-      "--scale-to-zero",
-      "policy=on,cooldown-time=30000",
-      "--image",
-      image,
-      "-o",
-      "json",
-    ],
-    { encoding: "utf8" },
-  );
-  if (runR.status !== 0)
-    throw new Error(`unikraft run failed: ${(runR.stderr || runR.stdout).slice(-400)}`);
-  const fqdn = /([a-z0-9-]+\.[a-z0-9]+\.unikraft\.app)/.exec(runR.stdout + runR.stderr)?.[1];
-  if (!fqdn) throw new Error(`unikraft run: no FQDN in output: ${runR.stdout.slice(0, 300)}`);
-  const url = `https://${fqdn}`;
-  const deadline = Date.now() + BOOT_CAP_S * 1000;
-  let up = false;
-  while (Date.now() < deadline && !up) {
-    await new Promise((r) => setTimeout(r, 2000));
-    up = await fetch(url, { redirect: "manual" })
-      .then((r) => r.status < 500)
-      .catch(() => false);
-  }
-  if (!up) throw new Error(`boot_failed: ${url} did not answer within ${BOOT_CAP_S}s`);
-  log(`up → ${url}`);
-  const instance = /"name"\s*:\s*"([^"]+)"/.exec(runR.stdout)?.[1];
-  return {
-    url,
-    backend: "unikraft",
-    recipe,
-    port,
-    seconds: (Date.now() - t0) / 1000,
-    stop: async () => {
-      if (instance)
-        spawnSync("unikraft", ["instance", "remove", "--metro", metro, instance], {
-          encoding: "utf8",
-        });
-    },
-  };
-}
-
 export async function bootRepo(opts: BootOptions): Promise<BootResult> {
   const facts = readRepoFacts(opts.repo_url, opts.ref);
   const r = recipeFor(facts, opts.setup_hint);
   if (!r.ok) return r;
-  const backend = process.env["UKC_TOKEN"] ? "unikraft" : "e2b";
-  try {
-    const booted =
-      backend === "unikraft" ? await bootUnikraft(opts, r.recipe) : await bootE2B(opts, r.recipe);
-    return { ok: true, booted };
-  } catch (e) {
-    if (backend === "unikraft" && process.env["E2B_API_KEY"]) {
-      opts.log?.(`unikraft failed (${String(e).slice(0, 120)}); falling back to e2b`);
-      const booted = await bootE2B(opts, r.recipe);
-      return { ok: true, booted };
-    }
-    throw e;
-  }
+  return { ok: true, booted: await bootE2B(opts, r.recipe) };
 }

@@ -101,7 +101,7 @@ export interface Explored {
   pages: PageShot[];
   observed: string[];
   boot?: {
-    backend: "e2b" | "unikraft" | "none";
+    backend: "e2b" | "none";
     install?: string;
     start?: string;
     port?: number;

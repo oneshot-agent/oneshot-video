@@ -1,6 +1,8 @@
 /**
  * Stages in order, an events.jsonl per run, gates before render, the #881 result contract.
- * script → record → narrate → plan → gates → render. --dry-run prints the plan and returns before any paid call.
+ * A repo is booted in a sandbox and its pages are shot from outside; a URL is shot as it is.
+ * The film is cut from those stills with the launch film's camera moves. The old continuous
+ * recording stays as an option (`video: true`) for a deployed URL.
  */
 import { spawnSync } from "node:child_process";
 import {
@@ -16,13 +18,15 @@ import {
   BED_PATH,
   CAPTURE_BEAT_MIN_S,
   CLOSE_HOLD_S,
-  WEDGE_TURN_HOLD_S,
   ENDTAG_SECONDS,
   TTS_REQUEST,
+  WEDGE_TURN_HOLD_S,
   runGates,
   type GateReport,
 } from "@oneshot-agent/video-baseline";
 import type {
+  Explored,
+  PageShot,
   Recording,
   RenderResult,
   Scene,
@@ -32,16 +36,17 @@ import type {
   Stem,
 } from "@oneshot-video/shared-types";
 
-export const STAGES = ["script", "record", "narrate", "plan", "gates", "render"] as const;
+export const STAGES = ["boot", "script", "shoot", "narrate", "plan", "gates", "render"] as const;
 export type Stage = (typeof STAGES)[number];
 
 export const STAGE_NOTES: Record<Stage, string> = {
+  boot: "a repo is cloned, installed and started in OneShot's E2B sandbox; a URL skips this",
   script:
-    "OneShot webRead(app_url) → OpenRouter → script.json, then voiceLint / dontReadTheCommand / silenceRespected",
-  record:
-    "Playwright drives flow.json against app_url at 1920×1080 and records; emits observed[] for noTaughtErrors",
+    "OneShot webRead(repo or app) → OpenRouter → script.json, then voiceLint / wordsWithinBudget / dontReadTheCommand / silenceRespected",
+  shoot:
+    "pages chosen from the hint and the landing's links, screenshot at 1920×1080 from outside the box; visible text kept for noTaughtErrors",
   narrate: "ElevenLabs eleven_v3, Sarah, one stem per section; ffprobe measures each stem",
-  plan: "scene windows rebuilt from measured stems; text cards open and close, captured pixels between",
+  plan: "scene windows rebuilt from measured stems; a still per capture beat; text cards open and close",
   gates: "every gate in @oneshot-agent/video-baseline; a failure stops the run before render",
   render: "Remotion DemoVideo + DemoVideoSilent; bed at 0.40 under narration, 0.85 alone",
 };
@@ -73,27 +78,33 @@ export function writeStatus(id: string, stage: string, extra: Record<string, unk
 const defaultKind = (i: number, n: number): Scene["kind"] =>
   i === 0 || i === n - 1 ? "text_card" : "capture";
 
+export interface PlanInput {
+  recording?: Pick<Recording, "duration_s">;
+  /** Stills, in the order the capture beats should show them. Paths are staticFile-relative. */
+  stills?: { src: string; width: number; height: number }[];
+}
+
 /**
  * Windows come from stems, never from estimates: each section is
- * pause_before + measured stem + pause_after, laid end to end. Capture scenes get one slow
- * push and an offset into the continuous recording.
+ * pause_before + measured stem + pause_after, laid end to end. Capture beats get one slow push,
+ * a still (or an offset into the continuous recording), and hold on the UI for CAPTURE_BEAT_MIN_S.
  */
 export function planScenes(
   script: Script,
   stems: Stem[],
-  recording?: Pick<Recording, "duration_s">,
+  input: PlanInput = {},
 ): { script: Script; scenes: Scene[]; total_seconds: number } {
   const byId = new Map(stems.map((s) => [s.id, s]));
   let cursor = 0;
   const sections: Section[] = [];
   const scenes: Scene[] = [];
   const n = script.sections.length;
+  let captureIndex = 0;
   script.sections.forEach((raw, i) => {
     const stem = byId.get(raw.id);
     if (!stem) throw new Error(`planScenes: no stem for section ${raw.id}`);
-    // The film's holds live in the cues, so the window and the stem stay reconcilable.
     const kindOf = raw.kind ?? defaultKind(i, n);
-    // A capture beat holds on the UI for CAPTURE_BEAT_MIN_S even when the voice is done sooner.
+    // The film's holds live in the cues, so the window and the stem stay reconcilable.
     const spoken =
       raw.delivery_cues.pause_before_seconds +
       stem.duration_s +
@@ -118,31 +129,37 @@ export function planScenes(
       s.delivery_cues.pause_after_seconds;
     cursor = end;
     sections.push({ ...s, start_seconds: start, end_seconds: end });
-    const kind = kindOf;
     const scene: Scene = {
       id: s.id,
-      kind,
+      kind: kindOf,
       start_seconds: start,
       end_seconds: end,
       caption: s.label,
     };
-    if (kind === "capture")
+    if (kindOf === "capture") {
       scene.focus = {
         from: [0.5, 0.5, 1],
         to: [0.5, 0.52, 0.9],
         moveStart: 0.2,
         moveEnd: end - start,
       };
+      const still = input.stills?.[Math.min(captureIndex, (input.stills?.length ?? 1) - 1)];
+      if (still) {
+        scene.still = still.src;
+        scene.still_width = still.width;
+        scene.still_height = still.height;
+      }
+      captureIndex++;
+    }
     scenes.push(scene);
   });
-  // Footage offsets: capture beats read the recording in order. If the recording is shorter
-  // than the beats need, the last beats slide back so nothing seeks past the end.
-  if (recording) {
+  // Footage offsets for the continuous recording, if that is what the beats are cut from.
+  if (input.recording && !input.stills?.length) {
     let used = 0;
     for (const sc of scenes) {
       if (sc.kind !== "capture" && sc.kind !== "terminal") continue;
       const len = sc.end_seconds - sc.start_seconds;
-      sc.recording_offset_s = Math.max(0, Math.min(used, recording.duration_s - len - 0.1));
+      sc.recording_offset_s = Math.max(0, Math.min(used, input.recording.duration_s - len - 0.1));
       used += len;
     }
   }
@@ -157,18 +174,26 @@ export function planScenes(
 }
 
 export interface RunOptions {
-  app_url: string;
+  /** A public GitHub repo to boot in a sandbox, or a deployed app URL. One is required. */
+  repo_url?: string;
+  app_url?: string;
+  ref?: string;
+  /** "install: …; start: …; port: N" and any paths to show. */
+  setup_hint?: string;
+  env?: Record<string, string>;
   length_s?: number;
   silentOnly?: boolean;
+  /** Cut the beats from a continuous recording instead of stills (deployed URLs only). */
+  video?: boolean;
   /** Run id; also the intake submission id. Defaults to a timestamp. */
   id?: string;
-  /** One line from the submitter on what to show. Reaches the script prompt. */
+  /** One line from the submitter on what to show. Reaches the script prompt and the page picker. */
   hint?: string;
   eventsPath?: string;
 }
 
 export interface DryRunPlan {
-  app_url: string;
+  target: string;
   length_s: number;
   stages: { stage: Stage; note: string }[];
   tts: typeof TTS_REQUEST;
@@ -176,7 +201,7 @@ export interface DryRunPlan {
 
 export function describePlan(opts: RunOptions): DryRunPlan {
   return {
-    app_url: opts.app_url,
+    target: opts.repo_url ?? opts.app_url ?? "",
     length_s: opts.length_s ?? 30,
     stages: STAGES.map((stage) => ({ stage, note: STAGE_NOTES[stage] })),
     tts: TTS_REQUEST,
@@ -197,11 +222,15 @@ export function gate(ctx: Parameters<typeof runGates>[0]): GateReport {
 
 export interface Artifacts {
   id: string;
-  app_url: string;
+  target: string;
   script: Script;
   stems: Stem[];
-  recording: Recording;
+  /** What the viewer saw: page stills (default) or a continuous recording. */
+  pages?: PageShot[];
+  recording?: Recording;
+  observed: string[];
   cost_usd?: number;
+  boot?: Explored["boot"];
 }
 
 function probeDuration(path: string): number {
@@ -216,7 +245,6 @@ function probeDuration(path: string): number {
 }
 
 function render(
-  id: string,
   composition: "DemoVideo" | "DemoVideoSilent",
   propsPath: string,
   out: string,
@@ -254,6 +282,8 @@ function render(
   });
 }
 
+const norm = (x: string) => x.toLowerCase().replace(/\s+/g, " ").trim();
+
 /** plan → gates → render, from artifacts already on disk. run() ends here; so does a re-render. */
 export async function finish(
   a: Artifacts,
@@ -261,20 +291,29 @@ export async function finish(
 ): Promise<RenderResult> {
   const dir = runDir(a.id);
   const log = new EventLog(join(dir, "events.jsonl"));
+  const pub = join(FILM_DIR, "public", "runs", a.id);
+  mkdirSync(join(pub, "stems"), { recursive: true });
 
   writeStatus(a.id, "planning");
-  const { script, scenes, total_seconds } = planScenes(a.script, a.stems, a.recording);
+  const stills = (a.pages ?? []).map((p, i) => {
+    const name = `page-${i + 1}.png`;
+    copyFileSync(p.png, join(pub, name));
+    return { src: `runs/${a.id}/${name}`, width: p.width, height: p.height };
+  });
+  const { script, scenes, total_seconds } = planScenes(a.script, a.stems, {
+    recording: a.recording,
+    stills,
+  });
   writeFileSync(join(dir, "scenes.json"), JSON.stringify(scenes, null, 2));
 
   writeStatus(a.id, "gates");
   log.write({ tool: "gates", event: "start" });
   // What the viewer can see. A text card draws its own on_screen lines, so those are observed by
   // construction. A capture beat's on_screen items are the script's expectations of the page: each is
-  // checked against the recorded text (whitespace and case folded, across element boundaries) and
+  // checked against the captured text (whitespace and case folded, across element boundaries) and
   // kept only if seen. Nothing false is drawn either way, so an unmet expectation is a note, not a
   // failed film. Commands and URLs in narration stay hard-gated by dontReadTheCommand.
-  const norm = (x: string) => x.toLowerCase().replace(/\s+/g, " ").trim();
-  const blob = norm(a.recording.observed.join(" "));
+  const blob = norm(a.observed.join(" "));
   const dropped: string[] = [];
   for (const s of script.sections) {
     if ((s.kind ?? "capture") === "text_card" || !s.on_screen?.length) continue;
@@ -282,21 +321,17 @@ export async function finish(
     for (const item of s.on_screen) if (!kept.includes(item)) dropped.push(`${s.id}: "${item}"`);
     s.on_screen = kept;
   }
-  if (dropped.length) {
+  if (dropped.length)
     log.write({
       tool: "gates",
       event: "start",
-      note: `on_screen expectations not seen in the recording, dropped: ${dropped.join("; ")}`,
+      note: `on_screen expectations not seen on the pages, dropped: ${dropped.join("; ")}`,
     });
-  }
   const drawn = script.sections
     .filter((s) => (s.kind ?? "capture") === "text_card")
     .flatMap((s) => s.on_screen ?? []);
-  const observed = [
-    ...a.recording.observed,
-    ...drawn,
-    ...script.sections.flatMap((s) => s.on_screen ?? []),
-  ];
+  const observed = [...a.observed, ...drawn, ...script.sections.flatMap((s) => s.on_screen ?? [])];
+  const filmDirs = [join(FILM_DIR, "src")];
   const report = runGates({
     script,
     stems: a.stems,
@@ -304,7 +339,7 @@ export async function finish(
     scenes,
     bedPath: BED_PATH,
     tts: TTS_REQUEST,
-    filmDirs: [join(FILM_DIR, "src")],
+    filmDirs,
   });
   const gates = (Object.keys(report.results) as (keyof typeof report.results)[]).map((name) => ({
     name,
@@ -330,14 +365,12 @@ export async function finish(
       scenes,
       bedPath: BED_PATH,
       tts: TTS_REQUEST,
-      filmDirs: [join(FILM_DIR, "src")],
+      filmDirs,
     });
   }
 
   // Everything the composition plays is served by staticFile() from packages/film/public.
-  const pub = join(FILM_DIR, "public", "runs", a.id);
-  mkdirSync(join(pub, "stems"), { recursive: true });
-  copyFileSync(a.recording.path, join(pub, "recording.mp4"));
+  if (a.recording) copyFileSync(a.recording.path, join(pub, "recording.mp4"));
   const stems = a.stems.map((s) => {
     const name = basename(s.path);
     copyFileSync(s.path, join(pub, "stems", name));
@@ -345,20 +378,26 @@ export async function finish(
   });
   if (!existsSync(join(FILM_DIR, "public", "score.mp3")))
     copyFileSync(BED_PATH, join(FILM_DIR, "public", "score.mp3"));
+  const targetUrl = a.target.replace(/^https?:\/\//, "").replace(/\/$/, "");
+  const hostname = (() => {
+    try {
+      return new URL(a.target.startsWith("http") ? a.target : `https://${a.target}`).hostname;
+    } catch {
+      return a.target;
+    }
+  })();
   const target = {
-    hostname: new URL(a.app_url).hostname,
-    url: a.app_url.replace(/^https?:\/\//, "").replace(/\/$/, ""),
+    hostname: hostname === "github.com" ? targetUrl.replace(/^github\.com\//, "") : hostname,
+    url: targetUrl,
   };
   const props = {
     script,
     scenes,
     total_seconds,
     stems,
-    recording: {
-      src: `runs/${a.id}/recording.mp4`,
-      width: a.recording.width,
-      height: a.recording.height,
-    },
+    recording: a.recording
+      ? { src: `runs/${a.id}/recording.mp4`, width: a.recording.width, height: a.recording.height }
+      : undefined,
     bed: "score.mp3",
     target,
   };
@@ -369,8 +408,8 @@ export async function finish(
   mkdirSync(join(ROOT, "renders"), { recursive: true });
   const silent = join(ROOT, "renders", `${a.id}-silent.mp4`);
   const voiced = join(ROOT, "renders", `${a.id}-voiced.mp4`);
-  render(a.id, "DemoVideoSilent", propsPath, silent, log);
-  if (!opts.silentOnly) render(a.id, "DemoVideo", propsPath, voiced, log);
+  render("DemoVideoSilent", propsPath, silent, log);
+  if (!opts.silentOnly) render("DemoVideo", propsPath, voiced, log);
 
   const cost = a.cost_usd ?? 0;
   const result: RenderResult = {
@@ -380,15 +419,31 @@ export async function finish(
     scenes,
     cost,
   };
-  writeFileSync(join(dir, "result.json"), JSON.stringify({ ...result, gates }, null, 2));
+  writeFileSync(
+    join(dir, "result.json"),
+    JSON.stringify({ ...result, gates, boot: a.boot }, null, 2),
+  );
   return result;
 }
 
-/** Load a run's artifacts back from disk (script.json, stems/stems.json, recording.mp4). */
-export function loadArtifacts(id: string, app_url: string): Artifacts {
+/** Load a run's artifacts back from disk (script.json, stems/stems.json, explored.json or recording.mp4). */
+export function loadArtifacts(id: string, target: string): Artifacts {
   const dir = runDir(id);
   const script = JSON.parse(readFileSync(join(dir, "script.json"), "utf8")) as Script;
   const stems = JSON.parse(readFileSync(join(dir, "stems", "stems.json"), "utf8")) as Stem[];
+  const exploredPath = join(dir, "explored.json");
+  if (existsSync(exploredPath)) {
+    const ex = JSON.parse(readFileSync(exploredPath, "utf8")) as Explored;
+    return {
+      id,
+      target,
+      script,
+      stems,
+      pages: ex.pages.map((p) => ({ ...p, png: resolve(dir, p.png) })),
+      observed: ex.observed,
+      boot: ex.boot,
+    };
+  }
   const rec = join(dir, "recording.mp4");
   const observedPath = join(dir, "observed.json");
   const observed = existsSync(observedPath)
@@ -396,7 +451,7 @@ export function loadArtifacts(id: string, app_url: string): Artifacts {
     : [];
   return {
     id,
-    app_url,
+    target,
     script,
     stems,
     recording: {
@@ -407,24 +462,72 @@ export function loadArtifacts(id: string, app_url: string): Artifacts {
       duration_s: probeDuration(rec),
       observed,
     },
+    observed,
   };
 }
 
 /** The full run. Clients are resolved lazily so --dry-run and tests never import them. */
 export async function run(opts: RunOptions): Promise<RenderResult> {
+  if (!opts.repo_url && !opts.app_url) throw new Error("run(): repo_url or app_url is required");
   const id = opts.id ?? new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19).toLowerCase();
   const dir = runDir(id);
   mkdirSync(dir, { recursive: true });
   const log = new EventLog(opts.eventsPath ?? join(dir, "events.jsonl"));
+  const say = (line: string) => log.write({ tool: "explore", event: "start", note: line });
   const length_s = opts.length_s ?? 30;
+  const target = opts.repo_url ?? (opts.app_url as string);
 
   const { buildScript } = await import("@oneshot-video/script");
   const { localWebRead, oneshotWebRead, openRouterLlm } =
     await import("@oneshot-video/script/clients");
-  const { record } = await import("@oneshot-video/record");
   const { narrate } = await import("@oneshot-video/narrate");
   const { elevenLabsTts } = await import("@oneshot-video/narrate/clients");
 
+  // 1. boot + shoot (or record). The app is what the film is about; read it before writing a word.
+  writeStatus(id, opts.repo_url ? "booting" : "shooting");
+  log.write({ tool: "explore", event: "start" });
+  const t0 = Date.now();
+  let pages: PageShot[] | undefined;
+  let recording: Recording | undefined;
+  let observed: string[] = [];
+  let boot: Explored["boot"];
+  if (opts.video && opts.app_url && !opts.repo_url) {
+    const { record } = await import("@oneshot-video/record");
+    const rec = await record({ app_url: opts.app_url, outDir: join(dir, "recording") });
+    copyFileSync(rec.path, join(dir, "recording.mp4"));
+    writeFileSync(join(dir, "observed.json"), JSON.stringify(rec.observed));
+    recording = {
+      ...rec,
+      path: join(dir, "recording.mp4"),
+      duration_s: probeDuration(join(dir, "recording.mp4")),
+    };
+    observed = rec.observed;
+  } else {
+    const { explore, pathsFromHint } = await import("@oneshot-video/explore");
+    const ex = await explore({
+      repo_url: opts.repo_url,
+      app_url: opts.app_url,
+      ref: opts.ref,
+      setup_hint: opts.setup_hint,
+      env: opts.env,
+      want: pathsFromHint(`${opts.hint ?? ""} ${opts.setup_hint ?? ""}`),
+      runDir: dir,
+      log: say,
+    });
+    if (opts.repo_url) writeStatus(id, "shooting");
+    pages = ex.pages;
+    observed = ex.observed;
+    boot = ex.boot;
+  }
+  log.write({
+    tool: "explore",
+    event: "finish",
+    success: true,
+    duration_s: (Date.now() - t0) / 1000,
+    note: `${pages?.length ?? 0} pages${boot ? ` · ${boot.backend} boot ${boot.seconds.toFixed(1)}s` : ""}`,
+  });
+
+  // 2. script, from what the app says about itself plus what its pages show.
   writeStatus(id, "script");
   log.write({ tool: "script", event: "start" });
   let webRead = localWebRead();
@@ -435,12 +538,25 @@ export async function run(opts: RunOptions): Promise<RenderResult> {
   } catch {
     /* no wallet key: the local reader stays */
   }
+  const pageText = observed
+    .filter((l) => !/^https?:\/\//.test(l))
+    .slice(0, 400)
+    .join("\n");
+  const withPages =
+    (wr: typeof webRead): typeof webRead =>
+    async (url) => {
+      const r = await wr(url);
+      return {
+        ...r,
+        markdown: `${r.markdown}\n\n## What the app's pages show (captured)\n${pageText}${opts.hint ? `\n\n## The submitter asked to show\n${opts.hint}` : ""}`,
+      };
+    };
   let scriptResult: { script: Script; cost_usd: number };
   try {
     scriptResult = await buildScript({
-      app_url: opts.app_url,
+      app_url: target,
       length_s,
-      webRead,
+      webRead: withPages(webRead),
       llm: openRouterLlm(),
     });
   } catch (e) {
@@ -453,9 +569,9 @@ export async function run(opts: RunOptions): Promise<RenderResult> {
       });
       reader = "local-fetch";
       scriptResult = await buildScript({
-        app_url: opts.app_url,
+        app_url: target,
         length_s,
-        webRead: localWebRead(),
+        webRead: withPages(localWebRead()),
         llm: openRouterLlm(),
       });
     } else throw e;
@@ -470,25 +586,7 @@ export async function run(opts: RunOptions): Promise<RenderResult> {
     note: reader,
   });
 
-  writeStatus(id, "recording");
-  log.write({ tool: "record", event: "start" });
-  const t0 = Date.now();
-  const rec = await record({ app_url: opts.app_url, outDir: join(dir, "recording") });
-  copyFileSync(rec.path, join(dir, "recording.mp4"));
-  writeFileSync(join(dir, "observed.json"), JSON.stringify(rec.observed));
-  const recording: Recording = {
-    ...rec,
-    path: join(dir, "recording.mp4"),
-    duration_s: probeDuration(join(dir, "recording.mp4")),
-  };
-  log.write({
-    tool: "record",
-    event: "finish",
-    success: true,
-    output_path: recording.path,
-    duration_s: (Date.now() - t0) / 1000,
-  });
-
+  // 3. narrate
   writeStatus(id, "narrating");
   log.write({ tool: "elevenlabs_tts", event: "start" });
   const t1 = Date.now();
@@ -507,11 +605,14 @@ export async function run(opts: RunOptions): Promise<RenderResult> {
   return finish(
     {
       id,
-      app_url: opts.app_url,
+      target,
       script: scriptResult.script,
       stems,
+      pages,
       recording,
+      observed,
       cost_usd: scriptResult.cost_usd,
+      boot,
     },
     { silentOnly: opts.silentOnly },
   );

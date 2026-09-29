@@ -12,6 +12,7 @@ import {
   CornerMark,
   Field,
   FramedCapture,
+  FramedStill,
   SilentLabels,
   WedgeCard,
   Wordmark,
@@ -114,6 +115,14 @@ export const DemoVideo: React.FC<DemoVideoProps> = ({
                   cardLines(section ?? { text: "" }, [target.hostname, target.url])[1],
                 ]}
                 url={target.url}
+              />
+            ) : scene.still ? (
+              <FramedStill
+                src={staticFile(scene.still)}
+                srcW={scene.still_width ?? 1920}
+                srcH={scene.still_height ?? 1080}
+                focus={scene.focus}
+                caption={scene.caption ?? section?.label ?? scene.id}
               />
             ) : recording ? (
               <FramedCapture

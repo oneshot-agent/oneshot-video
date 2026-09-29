@@ -45,7 +45,7 @@ export const USAGE = `oneshot-video <app_url> [--length 30] [--flow flow.json] [
 export function renderPlan(args: Args): string {
   const plan = describePlan({ app_url: args.app_url ?? "", length_s: args.length_s });
   const lines = [
-    `oneshot-video · ${plan.app_url} · ${plan.length_s}s${args.silentOnly ? " · silent only" : ""}`,
+    `oneshot-video · ${plan.target} · ${plan.length_s}s${args.silentOnly ? " · silent only" : ""}`,
     "",
     ...plan.stages.map((s, i) => `  ${i + 1}. ${s.stage.padEnd(8)} ${s.note}`),
     "",
