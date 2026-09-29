@@ -12,8 +12,11 @@ export default defineConfig({
     alias: [
       {
         find: /^@oneshot-agent\/video-baseline$/,
-        { find: /^@oneshot-agent\/video-baseline\/(.*)$/, replacement: src("./packages/baseline/src/$1.ts") },
         replacement: src("./packages/baseline/src/index.ts"),
+      },
+      {
+        find: /^@oneshot-agent\/video-baseline\/(.*)$/,
+        replacement: src("./packages/baseline/src/$1.ts"),
       },
       { find: /^@oneshot-agent\/video-film$/, replacement: src("./packages/film/src/index.ts") },
       {
