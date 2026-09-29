@@ -535,6 +535,11 @@ export async function run(opts: RunOptions): Promise<RenderResult> {
     observed = ex.observed;
     boot = ex.boot;
     harness = ex.harness;
+    // Narration and a render cost money and minutes; a film with no footage is not worth either.
+    if (!pages.length)
+      throw new Error(
+        "shooting: the camera got no stills (every page failed to load); nothing to film",
+      );
   }
   log.write({
     tool: "explore",
