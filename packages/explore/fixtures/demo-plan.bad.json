@@ -1,0 +1,31 @@
+{
+  "app": {
+    "name": "Receipts",
+    "what_it_does": "Turns forwarded emails into categorized, exportable receipts."
+  },
+  "boot": {
+    "install": "bun install",
+    "start": "bun run dev",
+    "port": "3000",
+    "env": { "ONESHOT_GTM_DEMO": "1" },
+    "demo_mode": "seeded",
+    "seeded": ["3 receipts"]
+  },
+  "workflow": [
+    {
+      "id": "landing",
+      "path": "dashboard",
+      "caption": "The landing page pitches the wedge in one line.",
+      "shows": "hero headline and a call to action"
+    },
+    {
+      "id": "landing",
+      "path": "/receipts",
+      "caption": "Search narrows the list to the matching receipt instantly.",
+      "shows": "the receipts table filtering live",
+      "actions": [{ "op": "fill", "selector": "#search" }]
+    }
+  ],
+  "blocked": null,
+  "notes": []
+}

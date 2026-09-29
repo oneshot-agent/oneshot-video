@@ -1,0 +1,46 @@
+{
+  "app": {
+    "name": "Receipts",
+    "what_it_does": "Turns forwarded emails into categorized, exportable receipts.",
+    "wedge_hint": "auto-categorization beats manual spreadsheets",
+    "proof_hint": "export a CSV in under 30 seconds"
+  },
+  "boot": {
+    "install": "bun install",
+    "start": "bun run dev",
+    "port": 3000,
+    "env": { "ONESHOT_GTM_DEMO": "1" },
+    "demo_mode": "seeded",
+    "seeded": ["3 receipts", "1 category"]
+  },
+  "workflow": [
+    {
+      "id": "landing",
+      "path": "/",
+      "caption": "The landing page pitches the wedge in one line.",
+      "shows": "hero headline and a call to action"
+    },
+    {
+      "id": "upload",
+      "path": "/upload",
+      "caption": "Forward an email in, a receipt comes out categorized.",
+      "shows": "the upload form",
+      "actions": [{ "op": "click", "selector": "#forward-sample" }]
+    },
+    {
+      "id": "search",
+      "path": "/receipts",
+      "caption": "Search narrows the list to the matching receipt instantly.",
+      "shows": "the receipts table filtering live",
+      "actions": [{ "op": "fill", "selector": "#search", "value": "coffee" }]
+    },
+    {
+      "id": "export",
+      "path": "/receipts/export",
+      "caption": "One click exports everything as a CSV.",
+      "shows": "the exported file downloading"
+    }
+  ],
+  "blocked": null,
+  "notes": ["seeded with three sample receipts for the demo"]
+}
