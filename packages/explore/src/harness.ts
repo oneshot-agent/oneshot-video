@@ -180,7 +180,10 @@ touch ${DONE}
       // run-agent.ts stops at 50 turns, and resuming does not grant more. An agent that used them
       // all without writing a plan hands over to a second one: fresh turns, a continuation task,
       // the first one's notes and clone. It exists to finish, not to explore again.
-      if (code === "0" && plan !== "plan" && !secondShift && deadline - Date.now() > 150_000) {
+      // A crash that survived its resume goes to a second agent too: resuming replays the same
+      // step (a cut-off tool call), a fresh agent does not.
+      const handOver = code === "0" || resumed;
+      if (handOver && plan !== "plan" && !secondShift && deadline - Date.now() > 150_000) {
         secondShift = true;
         done = false;
         log(
@@ -221,6 +224,13 @@ touch ${DONE}
     await run("pkill -f run-agent.ts || true", 10_000, false);
     log(`harness cap hit at ${seconds.toFixed(0)}s; reading whatever plan exists`);
   }
+  const errTail = await run(
+    "tail -60 /home/user/.agent-stderr.log 2>/dev/null || true",
+    10_000,
+    false,
+  );
+  if (errTail.stdout.trim())
+    writeFileSync(join(opts.runDir, "harness-agent-stderr.log"), errTail.stdout);
   // Keep the agent's own account next to the run.
   for (const f of ["demo-plan.json", "notes.md", "app.log"]) {
     const c = await run(`cat ${OUT}/${f} 2>/dev/null || true`, 15_000, false);

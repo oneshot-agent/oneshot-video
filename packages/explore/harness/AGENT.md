@@ -59,6 +59,11 @@ what is missing, write the plan, and stop.
 package manager the lockfile names (`bun install`, `npm ci`, `pnpm install`, `yarn install`,
 `uv sync`). A big frontend build takes minutes: start it, then read the code while it runs.
 
+**Never retype a big file.** A tool call has an output limit, and a `file_write` that runs past it
+arrives cut off and crashes you. Copy an existing file with `cp` (a sample config, a gallery
+dashboard, a fixture) and change it with `sed`, `jq` or a short script. Keep every `file_write`
+under about 150 lines.
+
 **Waiting costs turns.** While an install or build runs, wait with one `bash` call such as
 `sleep 25; tail -5 /home/user/output/build.log` (bash allows 30 s), which is one turn per 25
 seconds. Never call `bash_check` back to back: each call is a turn and returns in a second, and ten

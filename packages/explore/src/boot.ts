@@ -59,6 +59,8 @@ export interface Booted {
   recipe: Recipe;
   port: number;
   seconds: number;
+  /** The sandbox it runs in, for the camera inside the box. */
+  box?: Box;
   stop: () => Promise<void>;
 }
 
@@ -248,6 +250,7 @@ export async function bootE2B(opts: BootOptions, recipe: Recipe, given?: Box): P
     backend: "e2b",
     recipe,
     port,
+    box,
     seconds: (Date.now() - t0) / 1000,
     stop: async () => {
       await proxy.kill();

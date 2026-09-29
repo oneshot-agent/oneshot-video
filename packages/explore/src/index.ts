@@ -120,6 +120,43 @@ export async function explore(opts: ExploreOptions): Promise<Explored> {
         harness_note: h.reason,
       };
       stop = r.booted.stop;
+      // No agent plan on this path, so the camera gets a plain one: the landing, the hint's
+      // paths, and scrolls down the landing in place, shot inside the box like a harness plan.
+      if (r.booted.box) {
+        const paths = ["/", ...want.filter((p) => p !== "/")].slice(0, 4);
+        const planSteps: WorkflowStep[] = paths.map((path, i) => ({
+          id: i === 0 ? "landing" : `page-${i}`,
+          path,
+          caption: path,
+        }));
+        for (let k = 1; planSteps.length < 3; k++)
+          planSteps.push({
+            id: `scroll-${k}`,
+            path: planSteps.at(-1)?.path ?? "/",
+            caption: "scroll",
+            actions: [
+              { op: "scroll", px: 900 },
+              { op: "wait", ms: 800 },
+            ],
+          });
+        steps = planSteps;
+        inBox = {
+          box: r.booted.box,
+          plan: {
+            app: { name: opts.repo_url, what_it_does: "booted from its package.json scripts" },
+            boot: {
+              install: r.booted.recipe.install,
+              start: r.booted.recipe.start,
+              port: r.booted.port,
+              env: {},
+              demo_mode: null,
+              seeded: [],
+            },
+            workflow: planSteps.map((s) => ({ ...s, shows: s.caption })),
+            blocked: null,
+          },
+        };
+      }
     }
   }
   try {
