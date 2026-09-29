@@ -79,7 +79,8 @@ for (const s of steps) {
   const wall =
     shot && LOGIN_WALL.test(text.slice(0, 40).join(" ")) ? "LOOKS LIKE A LOGIN WALL" : "";
   const blank = shot && text.length === 0 ? "BLANK PAGE" : "";
-  const bad = !shot || failed.length > 0 || wall || blank;
+  const dialog = shot?.dialog ? `DIALOG OVER THE PAGE ("${shot.dialog}")` : "";
+  const bad = !shot || failed.length > 0 || wall || blank || dialog;
   if (bad) problems++;
   console.log(
     `${bad ? "FAIL" : "ok  "} ${s.id} ${s.path}${shot ? "" : " did not load"} ${wall}${blank}`,

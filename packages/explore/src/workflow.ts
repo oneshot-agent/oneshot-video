@@ -5,7 +5,7 @@
  */
 import { mkdirSync } from "node:fs";
 import { join } from "node:path";
-import { dismissOverlays } from "./overlays.ts";
+import { dismissOverlays, openDialog } from "./overlays.ts";
 
 export interface WorkflowStep {
   id: string;
@@ -28,6 +28,8 @@ export interface WorkflowPage {
   scroll(px: number): Promise<void>;
   screenshot(path: string): Promise<void>;
   visibleText(): Promise<string>;
+  /** The first line of a dialog left open over the page, or null. Optional. */
+  openDialog?(): Promise<string | null>;
 }
 
 export interface WorkflowPageResult {
@@ -36,6 +38,8 @@ export interface WorkflowPageResult {
   caption: string;
   url: string;
   text: string[];
+  /** A dialog that was still over the page when the still was taken. */
+  dialog?: string;
 }
 
 export interface WorkflowActionResult {
@@ -157,7 +161,15 @@ export async function runWorkflow(opts: RunWorkflowOptions): Promise<RunWorkflow
           observed.push(t);
         }
       }
-      pages.push({ id: step.id, png, caption: step.caption, url, text });
+      const dialog = (await page.openDialog?.().catch(() => null)) ?? undefined;
+      pages.push({
+        id: step.id,
+        png,
+        caption: step.caption,
+        url,
+        text,
+        ...(dialog ? { dialog } : {}),
+      });
       log(`step ${step.id} ${url}`);
     }
   } finally {
@@ -203,6 +215,7 @@ export async function playwrightPage(): Promise<{
     screenshot: async (path) => {
       await page.screenshot({ path, fullPage: false });
     },
+    openDialog: () => openDialog(page),
     visibleText: async () => {
       return await page
         .locator("body")
