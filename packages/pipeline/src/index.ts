@@ -10,7 +10,14 @@ import {
   runGates,
   type GateReport,
 } from "@oneshot-agent/video-baseline";
-import type { Scene, Script, Section, StageEvent, Stem } from "@oneshot-video/shared-types";
+import type {
+  RenderResult,
+  Scene,
+  Script,
+  Section,
+  StageEvent,
+  Stem,
+} from "@oneshot-video/shared-types";
 
 export const STAGES = ["script", "record", "narrate", "plan", "gates", "render"] as const;
 export type Stage = (typeof STAGES)[number];
@@ -85,8 +92,11 @@ export function planScenes(
 export interface RunOptions {
   app_url: string;
   length_s?: number;
-  dryRun?: boolean;
   silentOnly?: boolean;
+  /** Run id; also the intake submission id. Defaults to a timestamp. */
+  id?: string;
+  /** One line from the submitter on what to show. Reaches the script prompt. */
+  hint?: string;
   eventsPath?: string;
 }
 

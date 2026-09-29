@@ -75,7 +75,12 @@ export async function main(argv: string[]): Promise<number> {
     return 0;
   }
   try {
-    await run({ app_url: args.app_url, length_s: args.length_s, silentOnly: args.silentOnly });
+    const r = await run({
+      app_url: args.app_url,
+      length_s: args.length_s,
+      silentOnly: args.silentOnly,
+    });
+    console.log(`${r.video_url}\n${r.silent_video_url}\ncost $${r.cost.toFixed(4)}`);
     return 0;
   } catch (e) {
     console.error(e instanceof Error ? e.message : String(e));
