@@ -190,6 +190,8 @@ export interface RunOptions {
   id?: string;
   /** One line from the submitter on what to show. Reaches the script prompt and the page picker. */
   hint?: string;
+  /** Reuse this footage instead of booting and shooting again (a re-write of an existing run). */
+  explored?: Explored;
   eventsPath?: string;
   outDir?: string;
 }
@@ -519,17 +521,19 @@ export async function run(opts: RunOptions): Promise<RenderResult> {
     observed = rec.observed;
   } else {
     const { explore, pathsFromHint } = await import("@oneshot-video/explore");
-    const ex = await explore({
-      repo_url: opts.repo_url,
-      app_url: opts.app_url,
-      ref: opts.ref,
-      setup_hint: opts.setup_hint,
-      env: opts.env,
-      hint: opts.hint,
-      want: pathsFromHint(`${opts.hint ?? ""} ${opts.setup_hint ?? ""}`),
-      runDir: dir,
-      log: say,
-    });
+    const ex =
+      opts.explored ??
+      (await explore({
+        repo_url: opts.repo_url,
+        app_url: opts.app_url,
+        ref: opts.ref,
+        setup_hint: opts.setup_hint,
+        env: opts.env,
+        hint: opts.hint,
+        want: pathsFromHint(`${opts.hint ?? ""} ${opts.setup_hint ?? ""}`),
+        runDir: dir,
+        log: say,
+      }));
     progress.flush();
     pages = ex.pages;
     observed = ex.observed;
@@ -603,6 +607,7 @@ export async function run(opts: RunOptions): Promise<RenderResult> {
       length_s,
       webRead: withPages(webRead),
       llm: openRouterLlm(),
+      stills: pages?.map((p) => ({ png: p.png, caption: p.title })),
     });
   } catch (e) {
     if (reader === "oneshot-webread" && /payment/i.test(String(e))) {
@@ -618,6 +623,7 @@ export async function run(opts: RunOptions): Promise<RenderResult> {
         length_s,
         webRead: withPages(localWebRead()),
         llm: openRouterLlm(),
+        stills: pages?.map((p) => ({ png: p.png, caption: p.title })),
       });
     } else throw e;
   }

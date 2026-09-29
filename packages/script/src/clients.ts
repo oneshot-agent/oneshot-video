@@ -18,7 +18,7 @@ export function openRouterLlm(): Llm {
   const key = process.env["OPENROUTER_API_KEY"];
   if (!key) throw new Error("OPENROUTER_API_KEY is not set");
   const model = process.env["OPENROUTER_MODEL"] ?? "anthropic/claude-sonnet-4.5";
-  return async (system, user) => {
+  return async (system, user, images) => {
     const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -33,7 +33,15 @@ export function openRouterLlm(): Llm {
         response_format: { type: "json_object" },
         messages: [
           { role: "system", content: system },
-          { role: "user", content: user },
+          {
+            role: "user",
+            content: images?.length
+              ? [
+                  { type: "text", text: user },
+                  ...images.map((url) => ({ type: "image_url", image_url: { url } })),
+                ]
+              : user,
+          },
         ],
       }),
     });
