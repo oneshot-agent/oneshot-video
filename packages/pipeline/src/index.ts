@@ -14,6 +14,7 @@ import {
 import { basename, dirname, join, resolve } from "node:path";
 import {
   BED_PATH,
+  CAPTURE_BEAT_MIN_S,
   CLOSE_HOLD_S,
   WEDGE_TURN_HOLD_S,
   ENDTAG_SECONDS,
@@ -91,7 +92,15 @@ export function planScenes(
     const stem = byId.get(raw.id);
     if (!stem) throw new Error(`planScenes: no stem for section ${raw.id}`);
     // The film's holds live in the cues, so the window and the stem stay reconcilable.
-    const hold = i === 0 ? WEDGE_TURN_HOLD_S : i === n - 1 ? CLOSE_HOLD_S : 0;
+    const kindOf = raw.kind ?? defaultKind(i, n);
+    // A capture beat holds on the UI for CAPTURE_BEAT_MIN_S even when the voice is done sooner.
+    const spoken =
+      raw.delivery_cues.pause_before_seconds +
+      stem.duration_s +
+      raw.delivery_cues.pause_after_seconds;
+    const uiHold =
+      kindOf === "capture" || kindOf === "terminal" ? Math.max(0, CAPTURE_BEAT_MIN_S - spoken) : 0;
+    const hold = (i === 0 ? WEDGE_TURN_HOLD_S : i === n - 1 ? CLOSE_HOLD_S : 0) + uiHold;
     const s: Section = hold
       ? {
           ...raw,
@@ -109,7 +118,7 @@ export function planScenes(
       s.delivery_cues.pause_after_seconds;
     cursor = end;
     sections.push({ ...s, start_seconds: start, end_seconds: end });
-    const kind = s.kind ?? defaultKind(i, n);
+    const kind = kindOf;
     const scene: Scene = {
       id: s.id,
       kind,

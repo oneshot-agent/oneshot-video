@@ -54,6 +54,11 @@ export const WEDGE_TURN_HOLD_S = 0.8;
 export const CLOSE_HOLD_S = 1.6;
 /** Cards carry the argument in few words; the captures carry the runtime. */
 export const CARD_WORDS_MAX = 8;
+/**
+ * A capture beat holds on the UI for at least this long. The film's shortest captured beat runs
+ * 5.4 s and its voice never covers the whole window: silence over UI is preferred to filler.
+ */
+export const CAPTURE_BEAT_MIN_S = 6;
 export const ENDTAG_SECONDS = 1.2;
 export const ENDTAG_TEXT = "oneshot·video";
 
