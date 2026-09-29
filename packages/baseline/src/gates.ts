@@ -197,7 +197,8 @@ export function oneMotionVocabulary(
 export function realPixels(scenes: Scene[]): GateResult {
   if (!scenes.length) return fail("no scenes");
   const dur = (s: Scene) => s.end_seconds - s.start_seconds;
-  const total = scenes.reduce((a, s) => a + dur(s), 0);
+  // The end tag is appended after the piece; it is neither argument nor pixels.
+  const total = scenes.filter((s) => s.kind !== "endtag").reduce((a, s) => a + dur(s), 0);
   const pixels = scenes
     .filter((s) => s.kind === "capture" || s.kind === "terminal")
     .reduce((a, s) => a + dur(s), 0);

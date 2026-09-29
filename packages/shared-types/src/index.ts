@@ -79,6 +79,8 @@ export interface Scene {
     moveEnd: number;
   };
   caption?: string;
+  /** Where in the continuous recording this scene's footage starts. The film is not continuous; the recording is. */
+  recording_offset_s?: number;
 }
 
 export interface ScenePlan {

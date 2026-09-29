@@ -24,6 +24,14 @@ export default defineConfig({
         replacement: src("./packages/shared-types/src/index.ts"),
       },
       { find: /^@oneshot-video\/script$/, replacement: src("./packages/script/src/index.ts") },
+      {
+        find: /^@oneshot-video\/script\/clients$/,
+        replacement: src("./packages/script/src/clients.ts"),
+      },
+      {
+        find: /^@oneshot-video\/narrate\/clients$/,
+        replacement: src("./packages/narrate/src/clients.ts"),
+      },
       { find: /^@oneshot-video\/record$/, replacement: src("./packages/record/src/index.ts") },
       { find: /^@oneshot-video\/narrate$/, replacement: src("./packages/narrate/src/index.ts") },
       { find: /^@oneshot-video\/pipeline$/, replacement: src("./packages/pipeline/src/index.ts") },

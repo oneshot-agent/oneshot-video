@@ -69,6 +69,17 @@ export async function record(opts: RecordOptions): Promise<Recording> {
   const page = await context.newPage();
   const observed = new Set<string>();
   page.on("framenavigated", (f) => observed.add(f.url()));
+  /** Visible text after each step, one line per entry, so the noTaughtErrors gate can check what the viewer actually saw. */
+  const snapshotText = async () => {
+    const text = await page
+      .locator("body")
+      .innerText({ timeout: 2000 })
+      .catch(() => "");
+    for (const line of text.split(/\n+/)) {
+      const t = line.replace(/\s+/g, " ").trim();
+      if (t.length >= 2 && t.length <= 240) observed.add(t);
+    }
+  };
   const t0 = Date.now();
   for (const step of flow.steps) {
     if (step.op === "goto") await page.goto(step.url, { waitUntil: "networkidle" });
@@ -81,7 +92,9 @@ export async function record(opts: RecordOptions): Promise<Recording> {
         .catch(() => undefined);
     else if (step.op === "fill") await page.locator(step.selector).first().fill(step.value);
     else if (step.op === "scroll") await page.mouse.wheel(0, step.dy);
+    if (step.op !== "wait") await snapshotText();
   }
+  await snapshotText();
   const video = page.video();
   await context.close();
   await browser.close();

@@ -32,10 +32,18 @@ export type DemoVideoProps = {
   silent?: boolean;
 };
 
-const splitWedge = (text: string): { setup: string[]; turn: string } => {
-  const parts = text.split(/(?<=[.?!])\s+/).filter(Boolean);
-  const turn = parts.length > 1 ? (parts.pop() as string) : text;
-  return { setup: parts.length ? parts : [text], turn };
+/** Card copy: the section's own on_screen lines when the script wrote them, else the narration split at sentences. */
+const cardLines = (section: { text: string; on_screen?: string[] }): string[] => {
+  const own = (section.on_screen ?? []).map((l) => l.trim()).filter(Boolean);
+  return own.length ? own : section.text.split(/(?<=[.?!])\s+/).filter(Boolean);
+};
+const splitWedge = (section: {
+  text: string;
+  on_screen?: string[];
+}): { setup: string[]; turn: string } => {
+  const parts = cardLines(section);
+  const turn = parts.length > 1 ? (parts.pop() as string) : (parts[0] ?? section.text);
+  return { setup: parts.length ? parts : [], turn };
 };
 
 export const DemoVideo: React.FC<DemoVideoProps> = ({
@@ -87,12 +95,15 @@ export const DemoVideo: React.FC<DemoVideoProps> = ({
                 />
               </AbsoluteFill>
             ) : scene.kind === "text_card" && isFirst && section ? (
-              <WedgeCard {...splitWedge(section.text)} />
+              <WedgeCard {...splitWedge(section)} />
             ) : scene.kind === "text_card" && isLast ? (
               <CloseLockup
                 left={host}
                 right={tld}
-                lines={[section?.text ?? target.hostname]}
+                lines={[
+                  cardLines(section ?? { text: target.hostname })[0] ?? target.hostname,
+                  cardLines(section ?? { text: "" })[1],
+                ]}
                 url={target.url}
               />
             ) : recording ? (
@@ -102,7 +113,7 @@ export const DemoVideo: React.FC<DemoVideoProps> = ({
                 srcH={recording.height}
                 focus={scene.focus}
                 caption={scene.caption ?? section?.label ?? scene.id}
-                startFrom={scene.start_seconds}
+                startFrom={scene.recording_offset_s ?? 0}
               />
             ) : (
               <>
