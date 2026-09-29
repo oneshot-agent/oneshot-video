@@ -91,13 +91,33 @@ export function gateScript(script: Script): void {
   }
 }
 
+/** One retry, with the gate's own words fed back. A second miss stops the run; the taste is not negotiable. */
 export async function buildScript(
   opts: BuildScriptOptions,
-): Promise<{ script: Script; cost_usd: number }> {
+): Promise<{ script: Script; cost_usd: number; attempts: number }> {
   const length_s = opts.length_s ?? 30;
   const page = await opts.webRead(opts.app_url);
-  const raw = await opts.llm(systemPrompt(), userPrompt(opts.app_url, page.markdown, length_s));
-  const script = parseScript(raw);
-  gateScript(script);
-  return { script, cost_usd: page.cost_usd ?? 0 };
+  const system = systemPrompt();
+  const user = userPrompt(opts.app_url, page.markdown, length_s);
+  const first = await opts.llm(system, user);
+  const script = parseScript(first);
+  try {
+    gateScript(script);
+    return { script, cost_usd: page.cost_usd ?? 0, attempts: 1 };
+  } catch (e) {
+    const why = e instanceof Error ? e.message : String(e);
+    const budget = wordBudget(length_s);
+    const words = script.sections.reduce((n, x) => n + x.text.trim().split(/\s+/).length, 0);
+    const retry = [
+      user,
+      "",
+      "Your previous script did not pass:",
+      why,
+      `It has ${words} words; the budget is ${budget}. Cut lines rather than shortening every line. Keep the same sections and keys. Return the corrected JSON only.`,
+    ].join("\n");
+    const second = await opts.llm(system, retry);
+    const fixed = parseScript(second);
+    gateScript(fixed);
+    return { script: fixed, cost_usd: page.cost_usd ?? 0, attempts: 2 };
+  }
 }
