@@ -250,6 +250,38 @@ function cutList(script: Script, length_s: number): string {
   ].join("\n");
 }
 
+/**
+ * A second look, by a reader who did not write the script: the stills and every line, and the
+ * question "which of these does the footage not support?". Catches what a claim check cannot: a
+ * real number under the wrong label ("171 nodes" over "Total movies 171"), a count or a range
+ * the screen does not show ("five decades" over five 1990s dates).
+ */
+export async function factCheck(llm: Llm, script: Script, images: string[]): Promise<string[]> {
+  const lines = script.sections.flatMap((sec) => [
+    ...(sec.text?.trim() ? [`${sec.id} (voice): ${sec.text}`] : []),
+    ...(sec.on_screen ?? []).map((l) => `${sec.id} (on screen): ${l}`),
+  ]);
+  const raw = await llm(
+    "You check a short product film's script against its footage. You are strict and literal. Reply with JSON only.",
+    [
+      "The attached images are the film's stills. Below are the lines the film says and shows.",
+      "List every line that states something the stills do not support: a number attached to the wrong thing, a count, total or range that is not shown, a name or title that is not visible, or a conclusion the screen does not show. A line that describes the product's purpose or tone without a factual claim is fine. Paraphrase of what is visible is fine.",
+      'Reply as {"problems": [{"line": "<the line>", "why": "<what the stills actually show>"}]}; an empty list when every line holds.',
+      "",
+      ...lines,
+    ].join("\n"),
+    images,
+  );
+  try {
+    const obj = JSON.parse(raw.slice(raw.indexOf("{"), raw.lastIndexOf("}") + 1)) as {
+      problems?: { line?: string; why?: string }[];
+    };
+    return (obj.problems ?? []).map((p) => `${p.line ?? "?"}: ${p.why ?? "not supported"}`);
+  } catch {
+    return [];
+  }
+}
+
 /** Up to three attempts, each retry carrying the gate's own words and a per-section cut list. A third miss stops the run; the taste is not negotiable. */
 export async function buildScript(
   opts: BuildScriptOptions,
@@ -277,6 +309,13 @@ export async function buildScript(
         }
       }
       gateScript(script, length_s, page.markdown);
+      if (images.length) {
+        const problems = await factCheck(opts.llm, script, images);
+        if (problems.length)
+          throw new Error(
+            `script failed taste gates: factCheck (the footage does not support: ${problems.join(" · ")}. Say only what the stills show, with the label they show it under)`,
+          );
+      }
       return { script, cost_usd: page.cost_usd ?? 0, attempts: attempt };
     } catch (e) {
       lastError = e instanceof Error ? e.message : String(e);
