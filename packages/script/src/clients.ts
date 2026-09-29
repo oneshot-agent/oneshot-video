@@ -44,3 +44,38 @@ export function openRouterLlm(): Llm {
     return content;
   };
 }
+
+/**
+ * Fallback reader for when the agent wallet cannot pay: plain fetch, tags stripped, no receipt.
+ * The pipeline prefers oneshotWebRead() and records which one ran in events.jsonl.
+ */
+export function localWebRead(): WebRead {
+  return async (url) => {
+    const res = await fetch(url, {
+      headers: { "user-agent": "Mozilla/5.0 oneshot-video" },
+      redirect: "follow",
+    });
+    if (!res.ok) throw new Error(`fetch ${url}: ${res.status}`);
+    const html = await res.text();
+    const title = /<title[^>]*>([^<]*)<\/title>/i.exec(html)?.[1]?.trim() ?? "";
+    const body = html
+      .replace(
+        /<script[\s\S]*?<\/script>|<style[\s\S]*?<\/style>|<svg[\s\S]*?<\/svg>|<!--[\s\S]*?-->/gi,
+        " ",
+      )
+      .replace(/<(h[1-6])[^>]*>/gi, "\n# ")
+      .replace(/<\/(p|div|li|h[1-6]|section|article|tr)>/gi, "\n")
+      .replace(/<br\s*\/?>/gi, "\n")
+      .replace(/<[^>]+>/g, " ")
+      .replace(/&nbsp;/g, " ")
+      .replace(/&amp;/g, "&")
+      .replace(/&lt;/g, "<")
+      .replace(/&gt;/g, ">")
+      .replace(/&quot;/g, '"')
+      .replace(/&#39;/g, "'")
+      .replace(/[ \t]+/g, " ")
+      .replace(/\n\s*\n+/g, "\n\n")
+      .trim();
+    return { markdown: `# ${title}\n\n${body}`, cost_usd: 0 };
+  };
+}
