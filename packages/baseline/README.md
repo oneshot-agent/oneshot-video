@@ -11,15 +11,6 @@ const report = runGates({ script, stems, observed, scenes, bedPath: BED_PATH, tt
 if (!report.ok) throw new Error(`taste: ${report.failed.join(", ")}`);
 ```
 
-From the command line, without writing any code:
-
-```
-bun run gates <script.json> [--stems stems.json] [--scenes scenes.json] [--bed path] [--observed a,b] [--json]
-```
-
-Prints one line per gate (name, ok/FAIL, reason, indented notes) and exits 1 if any gate failed.
-`--json` prints the `GateReport` instead of the table.
-
 | Module       | What it fixes                                                  |
 | ------------ | -------------------------------------------------------------- |
 | `tokens`     | palette, type, frame size                                      |
