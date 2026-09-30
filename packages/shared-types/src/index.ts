@@ -29,6 +29,8 @@ export interface Section {
   silentFallback?: string;
   /** For UI-reveal beats: seconds after the section start before the voice may begin. */
   speak_after_settle?: number;
+  /** A capture beat's footage: the 1-based still it plays over, chosen by the writer. */
+  still?: number;
 }
 
 export interface VoicePerformance {

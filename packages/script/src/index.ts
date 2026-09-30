@@ -53,7 +53,7 @@ export function stillsAsImages(stills: { png: string }[]): string[] {
 }
 
 const STILLS_NOTE = (n: number) =>
-  `\n\n## The footage\nThe ${n} attached images are the film's stills, in order: capture beat 1 shows still 1, and so on. Write only what they show. Every number, name and label you put on screen or in the voice must be readable in one of them; if a fact is only in the text above and not visible, leave it out. Do not add anything you know about the app or its data from elsewhere. A number keeps the label the screen gives it: under \"Total movies\", 171 is 171 movies, not nodes or records. The exact words and numbers go in on_screen; the voice says what they mean in its own words and never reads a label, button or heading aloud (say \"pick an actor\", not \"Select a person\").`;
+  `\n\n## The footage\nThe ${n} attached images are the film's stills, numbered 1 to ${n} in the order attached. Give every capture section a "still" field: the number of the image it plays over. Its voice and its on_screen describe that image and no other; two beats may share an image, and an image may go unused. Write only what they show. Every number, name and label you put on screen or in the voice must be readable in one of them; if a fact is only in the text above and not visible, leave it out. Do not add anything you know about the app or its data from elsewhere. A number keeps the label the screen gives it: under \"Total movies\", 171 is 171 movies, not nodes or records. The exact words and numbers go in on_screen; the voice says what they mean in its own words and never reads a label, button or heading aloud (say \"pick an actor\", not \"Select a person\").`;
 
 export function systemPrompt(): string {
   return readFileSync(PROMPT_PATH, "utf8");
@@ -259,6 +259,22 @@ export function notAFormula(script: Script): { ok: boolean; reason: string; note
     : { ok: true, reason: "opens and closes on the product" };
 }
 
+/** With footage attached, every capture beat names the still it plays over. */
+export function stillsAssigned(
+  script: Script,
+  n: number,
+): { ok: boolean; reason: string; notes?: string[] } {
+  const notes = script.sections
+    .filter((s) => (s.kind ?? "capture") === "capture")
+    .filter(
+      (s) => !(Number.isInteger(s.still) && (s.still as number) >= 1 && (s.still as number) <= n),
+    )
+    .map((s) => `${s.id}: "still" must be an image number from 1 to ${n}`);
+  return notes.length
+    ? { ok: false, reason: "a capture beat does not say which still it plays over", notes }
+    : { ok: true, reason: "every capture beat names its still" };
+}
+
 export function gateScript(script: Script, length_s = 30, source?: string): void {
   const results = {
     ...(source ? { claimsOnScreen: claimsOnScreen(script, source) } : {}),
@@ -309,14 +325,16 @@ function cutList(script: Script, length_s: number): string {
  * the screen does not show ("five decades" over five 1990s dates).
  */
 export async function factCheck(llm: Llm, script: Script, images: string[]): Promise<string[]> {
+  const over = (sec: Script["sections"][number]) =>
+    typeof sec.still === "number" ? `, over image ${sec.still}` : "";
   const lines = script.sections.flatMap((sec) => [
-    ...(sec.text?.trim() ? [`${sec.id} (voice): ${sec.text}`] : []),
-    ...(sec.on_screen ?? []).map((l) => `${sec.id} (on screen): ${l}`),
+    ...(sec.text?.trim() ? [`${sec.id} (voice${over(sec)}): ${sec.text}`] : []),
+    ...(sec.on_screen ?? []).map((l) => `${sec.id} (on screen${over(sec)}): ${l}`),
   ]);
   const raw = await llm(
     "You check a short product film's script against its footage. You are strict and literal. Reply with JSON only.",
     [
-      "The attached images are the film's stills. Below are the lines the film says and shows.",
+      'The attached images are the film\'s stills, numbered 1 to N in order. Below are the lines the film says and shows; a line marked "over image k" must be supported by image k itself.',
       "List every line that states something the stills do not support: a number attached to the wrong thing, a count, total or range that is not shown, a name or title that is not visible, or a conclusion the screen does not show. A line that describes the product's purpose or tone without a factual claim is fine. Paraphrase of what is visible is fine. Formatting is never a problem: thousands separators (1,995 is 1995), capitalisation, rounding, spelled-out numbers. Only flag a claim that is wrong or not shown.",
       'Reply as {"problems": [{"line": "<the line>", "why": "<what the stills actually show>"}]}; an empty list when every line holds.',
       "",
@@ -362,6 +380,11 @@ export async function buildScript(
       }
       gateScript(script, length_s, page.markdown);
       if (images.length) {
+        const assigned = stillsAssigned(script, images.length);
+        if (!assigned.ok)
+          throw new Error(
+            `script failed taste gates: stillsAssigned (${assigned.notes?.join("; ")})`,
+          );
         const problems = await factCheck(opts.llm, script, images);
         if (problems.length)
           throw new Error(

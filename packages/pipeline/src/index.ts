@@ -144,7 +144,11 @@ export function planScenes(
         moveStart: 0.2,
         moveEnd: end - start,
       };
-      const still = input.stills?.[Math.min(captureIndex, (input.stills?.length ?? 1) - 1)];
+      // The writer names the still each beat plays over; without one, beats take stills in order.
+      const chosen =
+        typeof s.still === "number" && input.stills?.[s.still - 1] ? s.still - 1 : undefined;
+      const still =
+        input.stills?.[chosen ?? Math.min(captureIndex, (input.stills?.length ?? 1) - 1)];
       if (still) {
         scene.still = still.src;
         scene.still_width = still.width;
@@ -539,6 +543,7 @@ export async function run(opts: RunOptions): Promise<RenderResult> {
     observed = ex.observed;
     boot = ex.boot;
     harness = ex.harness;
+    pages = selectStills(pages);
     // Narration and a render cost money and minutes; a film with no footage is not worth either.
     if (!pages.length)
       throw new Error(
@@ -667,4 +672,25 @@ export async function run(opts: RunOptions): Promise<RenderResult> {
     },
     { silentOnly: opts.silentOnly },
   );
+}
+
+/**
+ * The stills worth filming: drops an exact repeat of an earlier still, and a still whose visible
+ * text is wholly contained in the next one's (the same screen caught mid-load). Stills without
+ * recorded text are kept as they are.
+ */
+export function selectStills<T extends { text?: string[] }>(pages: T[]): T[] {
+  const key = (p: T) => (p.text ?? []).join("\n");
+  const out: T[] = [];
+  pages.forEach((p, i) => {
+    if (!p.text?.length) return void out.push(p);
+    if (out.some((q) => q.text?.length && key(q) === key(p))) return;
+    const next = pages[i + 1];
+    if (next?.text?.length && key(next) !== key(p)) {
+      const nextSet = new Set(next.text);
+      if (p.text.every((t) => nextSet.has(t))) return;
+    }
+    out.push(p);
+  });
+  return out.length ? out : pages;
 }
