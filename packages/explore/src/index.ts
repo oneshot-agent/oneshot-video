@@ -106,6 +106,12 @@ export async function explore(opts: ExploreOptions): Promise<Explored> {
       stop = h.stop;
       inBox = { box: h.box, plan: h.plan };
     } else {
+      if (h.blocked) {
+        await h.box?.sbx.kill().catch(() => {});
+        throw new Error(
+          `the agent could not boot this repo: ${h.reason.replace(/^blocked: /, "")}`,
+        );
+      }
       log(`harness: ${h.reason} → recipe boot${h.box ? " in the same sandbox" : ""}`);
       const r: BootResult = await bootRepo(bootOpts, h.box);
       if (!r.ok) throw new Error(`unsupported: ${r.reason}`);

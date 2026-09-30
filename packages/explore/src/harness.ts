@@ -39,7 +39,7 @@ export type HarnessResult =
       box: Box;
       stop: () => Promise<void>;
     }
-  | { ok: false; reason: string; box?: Box };
+  | { ok: false; reason: string; box?: Box; blocked?: boolean };
 
 /**
  * Small defects in an otherwise usable plan are fixed here rather than throwing away a whole agent
@@ -254,6 +254,11 @@ touch ${DONE}
       box,
     };
   }
+  // A plan the agent marked blocked is its verdict, whatever else is missing from it (a blocked
+  // plan has no port to validate). The recipe cannot do better, so the reason goes to the page.
+  const blockedReason = (parsed as { blocked?: unknown } | null)?.blocked;
+  if (typeof blockedReason === "string" && blockedReason.trim())
+    return { ok: false, reason: `blocked: ${blockedReason.trim()}`, box, blocked: true };
   const checked = validateDemoPlan(repairPlan(parsed));
   if (!checked.ok) return { ok: false, reason: `invalid plan: ${checked.errors.join("; ")}`, box };
   const plan = checked.plan;
