@@ -18,31 +18,31 @@ export const SHAPE_30S: readonly Beat[] = [
     id: "wedge",
     kind: "text_card",
     target_s: 5,
-    role: "the inversion: what every tool assumes, and what is actually true",
+    role: "the hook: the one thing this product changes, said to the people who would use it. Pick the angle from the product (a moment, a before and after, a number, a person), not a formula",
   },
   {
     id: "beat-1",
     kind: "capture",
     target_s: 6,
-    role: "the product doing the first thing the argument needs",
+    role: "the product doing the first thing the hook promised",
   },
   {
     id: "beat-2",
     kind: "capture",
     target_s: 6,
-    role: "the second thing; the feature is evidence, not the point",
+    role: "the second thing it does; show, do not list features",
   },
   {
     id: "proof",
     kind: "capture",
     target_s: 6,
-    role: "the receipt-equivalent: a number, a result, something that came back",
+    role: "the result: a number, an outcome, something the product gave back",
   },
   {
     id: "close",
     kind: "text_card",
     target_s: 4,
-    role: "URL as a card. Holds in silence after the narration ends.",
+    role: "the product's name and what it is for, in its own terms; the URL is drawn on the card. Holds in silence after the narration ends",
   },
 ] as const;
 
@@ -66,4 +66,4 @@ export const ENDTAG_TEXT = "oneshot·video";
 export const REAL_PIXELS_MIN = 0.6;
 
 export const OPENING_SENTENCE =
-  "Opens on an inversion, ends on the receipt. Argument first, features as evidence.";
+  "A launch film for this product: open on what it changes for the people who use it, let the captures prove it, end on its name and its promise. Every film is different because every product is.";

@@ -61,4 +61,4 @@ export const SENTENCE_WORDS_TARGET = 12;
 export const SENTENCE_WORDS_MAX = 19;
 
 export const TONE =
-  "Terse, dry, confident. Taleb-aphoristic — ~12 words a sentence, inversions over adjectives, amused rather than earnest. No hype vocabulary.";
+  "Confident, specific, a little dry; about twelve words a sentence. Pitched to this product's own audience: a consumer app speaks to the people who use it, a developer tool to developers. No hype vocabulary.";

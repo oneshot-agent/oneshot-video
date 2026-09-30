@@ -59,8 +59,33 @@ export function systemPrompt(): string {
   return readFileSync(PROMPT_PATH, "utf8");
 }
 
+/**
+ * The exemplar teaches keys, cues and restraint. Its opening and closing words were OneShot's own
+ * ("Every go-to-market tool assumes…", "open source under the MIT license…") and every film
+ * copied them, so they are shown as placeholders naming the job instead.
+ */
+function exemplarForPrompt(): string {
+  const raw = readFileSync(EXEMPLAR_PATH, "utf8");
+  try {
+    const ex = JSON.parse(raw) as Script;
+    const first = ex.sections[0];
+    const last = ex.sections.at(-1);
+    if (first) {
+      first.text = "<the hook: what THIS product changes, in its own terms>";
+      if (first.on_screen) first.on_screen = ["<the hook, as the card shows it>"];
+    }
+    if (last && last !== first) {
+      last.text = "<the product's name and its promise>";
+      if (last.on_screen) last.on_screen = ["<name + promise, as the card shows it>"];
+    }
+    return JSON.stringify(ex, null, 2);
+  } catch {
+    return raw;
+  }
+}
+
 export function userPrompt(app_url: string, markdown: string, length_s: number): string {
-  const exemplar = readFileSync(EXEMPLAR_PATH, "utf8");
+  const exemplar = exemplarForPrompt();
   const shape = SHAPE_30S.map((b) => `- ${b.id} (${b.kind}, ~${b.target_s}s): ${b.role}`).join(
     "\n",
   );
@@ -211,6 +236,29 @@ export function claimsOnScreen(
     : { ok: true, reason: "every number and name appears in the source" };
 }
 
+/**
+ * The two moulds every film fell into: an opening that generalises about "most tools", and a
+ * close about the licence or where it runs. A launch film opens on this product and ends on it.
+ */
+export function notAFormula(script: Script): { ok: boolean; reason: string; notes?: string[] } {
+  const first = script.sections[0];
+  const last = script.sections.at(-1);
+  const notes: string[] = [];
+  const open = [first?.text, ...(first?.on_screen ?? [])].filter(Boolean).join(" ").trim();
+  if (/^(most|every|all|nobody|no one|everyone)\b/i.test(open) || /\bassumes?\b/i.test(open))
+    notes.push(
+      `opening "${open.slice(0, 60)}" generalises about other tools; open on what this product changes`,
+    );
+  const close = [last?.text, ...(last?.on_screen ?? [])].filter(Boolean).join(" ");
+  if (/open[- ]source|\bmit\b|licen[cs]e|runs on your (machine|laptop|graph)/i.test(close))
+    notes.push(
+      `close "${close.slice(0, 60)}" is about the licence or where it runs; end on what the product is and gives you`,
+    );
+  return notes.length
+    ? { ok: false, reason: "the script falls into a formula", notes }
+    : { ok: true, reason: "opens and closes on the product" };
+}
+
 export function gateScript(script: Script, length_s = 30, source?: string): void {
   const results = {
     ...(source ? { claimsOnScreen: claimsOnScreen(script, source) } : {}),
@@ -223,6 +271,7 @@ export function gateScript(script: Script, length_s = 30, source?: string): void
     dontReadTheCommand: dontReadTheCommand(script),
     // Checked at render too, where a failure cannot be retried; here it sends the draft back.
     silentCutIsNotAMute: silentCutIsNotAMute(script),
+    notAFormula: notAFormula(script),
     silenceRespected: silenceRespected(script),
   };
   const failed = Object.entries(results).filter(([, r]) => !r.ok);

@@ -28,3 +28,33 @@ describe("claimsOnScreen", () => {
     ).toBe(true);
   });
 });
+
+describe("notAFormula", () => {
+  const two = (open: string, close: string) =>
+    ({
+      sections: [
+        { id: "wedge", text: open, on_screen: [open] },
+        { id: "close", text: "", on_screen: [close] },
+      ],
+      total_duration_seconds: 30,
+    }) as unknown as Script;
+  it("refuses the two moulds", async () => {
+    const { notAFormula } = await import("../src/index.ts");
+    const r = notAFormula(
+      two("Most dashboards assume you wrote the queries.", "Open source. Runs on your machine."),
+    );
+    expect(r.ok).toBe(false);
+    expect(r.notes?.join(" ")).toMatch(/opening.*close/s);
+  });
+  it("passes an opening and close about the product", async () => {
+    const { notAFormula } = await import("../src/index.ts");
+    expect(
+      notAFormula(
+        two(
+          "Pick an actor. Watch the graph redraw.",
+          "NeoDash. Dashboards straight from your graph.",
+        ),
+      ).ok,
+    ).toBe(true);
+  });
+});

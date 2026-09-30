@@ -16,7 +16,16 @@ describe("buildScript", () => {
       app_url: "https://oneshot-gtm.com",
       length_s: 60,
       webRead,
-      llm: async () => fx("oneshot-gtm-launch.script.json"),
+      llm: async () => {
+        // The launch script, with an opening and close written for the product, as a real
+        // model now has to.
+        const sc = JSON.parse(fx("oneshot-gtm-launch.script.json"));
+        sc.sections[0].text = "Your agent sends the outreach. You approve the queue.";
+        sc.sections[0].on_screen = ["Agent sends. You approve."];
+        sc.sections.at(-1).text = "Each send comes back with a signed receipt.";
+        sc.sections.at(-1).on_screen = ["oneshot-gtm", "Outreach you can audit."];
+        return JSON.stringify(sc);
+      },
     });
     expect(script.sections.length).toBe(8);
     expect(cost_usd).toBeCloseTo(0.0036, 6);
